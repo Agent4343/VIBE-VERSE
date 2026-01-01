@@ -30,8 +30,7 @@
             height: 100%;
             overflow: hidden;
             background-color: #0a0a2e;
-            font-family: 'Space Grotesk', 'Arial', sans-serif;
-            /* Prevent pull-to-refresh and other touch gestures */
+            font-family: Arial, sans-serif;
             touch-action: none;
             -webkit-touch-callout: none;
             -webkit-user-select: none;
@@ -53,9 +52,9 @@
             touch-action: none;
         }
 
-        /* Initial loading screen (before Phaser loads) */
+        /* Initial loading screen */
         #initial-loader {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
@@ -64,31 +63,27 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: linear-gradient(135deg, #0a0a2e 0%, #2d1b4e 100%);
-            z-index: 1000;
-            transition: opacity 0.5s ease;
+            background: linear-gradient(180deg, #0a0a2e 0%, #1a1a4e 100%);
+            z-index: 9999;
         }
 
         #initial-loader.hidden {
-            opacity: 0;
-            pointer-events: none;
-            visibility: hidden;
+            display: none;
         }
 
         .loader-title {
             color: #00ffff;
-            font-size: 32px;
+            font-size: 24px;
             font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
-            margin-bottom: 40px;
-            animation: pulse 2s ease-in-out infinite;
+            text-align: center;
+            padding: 0 20px;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px #00ffff;
         }
 
         .loader-spinner {
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             border: 4px solid rgba(0, 255, 255, 0.3);
             border-top: 4px solid #00ffff;
             border-radius: 50%;
@@ -96,101 +91,71 @@
         }
 
         .loader-text {
-            color: #888;
+            color: #aaa;
             font-size: 14px;
             margin-top: 20px;
+        }
+
+        .loader-error {
+            color: #ff6666;
+            font-size: 12px;
+            margin-top: 15px;
+            text-align: center;
+            padding: 0 20px;
+            max-width: 300px;
         }
 
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
-        /* Stars background animation */
-        .stars {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            overflow: hidden;
-        }
-
-        .star {
-            position: absolute;
-            width: 2px;
-            height: 2px;
-            background: white;
-            border-radius: 50%;
-            animation: twinkle 3s ease-in-out infinite;
-        }
-
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.3; }
-            50% { opacity: 1; }
-        }
     </style>
-  <script type="module" crossorigin src="/assets/main-DgRj1bO6.js"></script>
+  <script type="module" crossorigin src="/assets/main-C6jikdSP.js"></script>
 </head>
 <body>
-    <!-- Initial loader (shown before Phaser is ready) -->
+    <!-- Initial loader -->
     <div id="initial-loader">
-        <div class="stars" id="stars"></div>
-        <div class="loader-title">Cosmic Cadet Academy</div>
+        <div class="loader-title">COSMIC CADET ACADEMY</div>
         <div class="loader-spinner"></div>
-        <div class="loader-text">Initializing engines...</div>
+        <div class="loader-text" id="loader-status">Loading game...</div>
+        <div class="loader-error" id="loader-error"></div>
     </div>
 
     <!-- Phaser game container -->
     <div id="game-container"></div>
 
-    <!-- Generate random stars for loading screen -->
+    <!-- Error handling - must be before game script -->
     <script>
-        (function() {
-            const starsContainer = document.getElementById('stars');
-            for (let i = 0; i < 50; i++) {
-                const star = document.createElement('div');
-                star.className = 'star';
-                star.style.left = Math.random() * 100 + '%';
-                star.style.top = Math.random() * 100 + '%';
-                star.style.animationDelay = Math.random() * 3 + 's';
-                starsContainer.appendChild(star);
+        window.onerror = function(msg, url, line, col, error) {
+            var errorDiv = document.getElementById('loader-error');
+            var statusDiv = document.getElementById('loader-status');
+            if (errorDiv) {
+                errorDiv.textContent = 'Error: ' + msg;
             }
-        })();
+            if (statusDiv) {
+                statusDiv.textContent = 'Failed to load';
+            }
+            console.error('Game Error:', msg, url, line);
+            return false;
+        };
+
+        // Update status
+        function updateStatus(text) {
+            var el = document.getElementById('loader-status');
+            if (el) el.textContent = text;
+        }
+
+        // Hide loader function - only called when game is ready
+        window.hideLoader = function() {
+            var loader = document.getElementById('initial-loader');
+            if (loader) {
+                loader.classList.add('hidden');
+            }
+        };
+
+        updateStatus('Loading scripts...');
     </script>
 
     <!-- Main game script -->
-
-    <!-- Hide initial loader when Phaser is ready -->
-    <script>
-        // Function to hide loader
-        function hideLoader() {
-            const loader = document.getElementById('initial-loader');
-            if (loader) {
-                loader.classList.add('hidden');
-                setTimeout(function() {
-                    loader.remove();
-                }, 500);
-            }
-        }
-
-        // Wait for page load, then hide after Phaser starts
-        window.addEventListener('load', function() {
-            // Give Phaser time to initialize
-            setTimeout(hideLoader, 1500);
-        });
-
-        // Also hide on first touch/click (mobile fallback)
-        document.addEventListener('touchstart', function onFirstTouch() {
-            setTimeout(hideLoader, 100);
-            document.removeEventListener('touchstart', onFirstTouch);
-        }, { once: true });
-    </script>
 </body>
 </html>

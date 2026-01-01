@@ -119,11 +119,9 @@ export default class BootScene extends Phaser.Scene {
             resolution: `${this.scale.width}x${this.scale.height}`
         });
 
-        // Hide the HTML loading screen
-        const htmlLoader = document.getElementById('initial-loader');
-        if (htmlLoader) {
-            htmlLoader.classList.add('hidden');
-            setTimeout(() => htmlLoader.remove(), 500);
+        // Hide the HTML loading screen using global function
+        if (typeof window.hideLoader === 'function') {
+            window.hideLoader();
         }
 
         // Small delay for visual smoothness, then start PreloadScene
