@@ -46,58 +46,280 @@ export default class FightScene extends Phaser.Scene {
     }
 
     createArena(width, height) {
-        // Sky gradient
+        // Sky gradient with deeper colors
         const sky = this.add.graphics();
-        sky.fillGradientStyle(0x1a0a3e, 0x1a0a3e, 0x0a0a2e, 0x0a0a2e, 1);
+        sky.fillGradientStyle(0x1a0a3e, 0x1a0a3e, 0x050520, 0x050520, 1);
         sky.fillRect(0, 0, width, height);
         sky.setDepth(DEPTH.BACKGROUND);
 
-        // Stars
-        for (let i = 0; i < 60; i++) {
+        // Animated nebula clouds in background
+        for (let i = 0; i < 5; i++) {
+            const nebulaX = Phaser.Math.Between(100, width - 100);
+            const nebulaY = Phaser.Math.Between(50, height * 0.4);
+            const nebulaColor = Phaser.Math.RND.pick([0xff0066, 0x00ffff, 0x9900ff, 0xff6600]);
+            const nebula = this.add.circle(nebulaX, nebulaY, Phaser.Math.Between(60, 120), nebulaColor, 0.08);
+            nebula.setDepth(DEPTH.BACKGROUND);
+
+            this.tweens.add({
+                targets: nebula,
+                x: nebula.x + Phaser.Math.Between(-30, 30),
+                y: nebula.y + Phaser.Math.Between(-20, 20),
+                scale: { from: 1, to: 1.3 },
+                alpha: { from: 0.08, to: 0.15 },
+                duration: Phaser.Math.Between(4000, 8000),
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.inOut'
+            });
+        }
+
+        // Stars with twinkling effect
+        for (let i = 0; i < 80; i++) {
             const x = Phaser.Math.Between(0, width);
             const y = Phaser.Math.Between(0, height * 0.6);
-            const size = Phaser.Math.FloatBetween(0.5, 2);
-            const star = this.add.circle(x, y, size, 0xffffff, Phaser.Math.FloatBetween(0.3, 0.8));
+            const size = Phaser.Math.FloatBetween(0.5, 2.5);
+            const starColor = Phaser.Math.RND.pick([0xffffff, 0x88ccff, 0xffcc88]);
+            const star = this.add.circle(x, y, size, starColor, Phaser.Math.FloatBetween(0.3, 0.8));
             star.setDepth(DEPTH.BACKGROUND + 1);
 
             this.tweens.add({
                 targets: star,
-                alpha: 0.2,
-                duration: Phaser.Math.Between(1500, 3000),
+                alpha: Phaser.Math.FloatBetween(0.1, 0.3),
+                duration: Phaser.Math.Between(1000, 3000),
                 yoyo: true,
-                repeat: -1
+                repeat: -1,
+                delay: Phaser.Math.Between(0, 2000)
             });
         }
 
-        // Arena floor
+        // Distant city silhouette
+        this.createCitySilhouette(width, height);
+
+        // Arena floor with neon grid
         const floorY = FIGHT_CONFIG.groundY + 45;
-        const floor = this.add.graphics();
-        floor.fillStyle(0x333355, 1);
-        floor.fillRect(0, floorY, width, height - floorY);
-        floor.setDepth(DEPTH.ARENA);
-
-        // Floor details
-        floor.fillStyle(0x444466, 1);
-        for (let i = 0; i < width; i += 80) {
-            floor.fillRect(i, floorY, 2, height - floorY);
-        }
-
-        // Floor edge glow
-        const edgeGlow = this.add.graphics();
-        edgeGlow.fillStyle(0x6644aa, 0.5);
-        edgeGlow.fillRect(0, floorY, width, 3);
-        edgeGlow.setDepth(DEPTH.ARENA + 1);
+        this.createNeonFloor(width, height, floorY);
 
         // Arena boundaries (pillars)
         this.createPillar(30, floorY, 0x8866cc);
         this.createPillar(width - 30, floorY, 0x8866cc);
 
-        // Background arena decoration
+        // Animated electric arcs between pillars
+        this.createElectricArcs(width, floorY);
+
+        // Scanlines overlay for retro effect
+        this.createScanlines(width, height);
+
+        // Floating particles in arena
+        this.createFloatingParticles(width, height, floorY);
+
+        // Background arena decoration with glow
         const arenaName = this.add.text(width / 2, 50, 'NEON COLOSSEUM', {
             fontFamily: 'Arial Black',
-            fontSize: '24px',
+            fontSize: '28px',
             color: '#ffffff'
-        }).setOrigin(0.5).setAlpha(0.15).setDepth(DEPTH.BACKGROUND + 2);
+        }).setOrigin(0.5).setAlpha(0.2).setDepth(DEPTH.BACKGROUND + 2);
+
+        // Arena name glow pulse
+        this.tweens.add({
+            targets: arenaName,
+            alpha: { from: 0.15, to: 0.3 },
+            duration: 2000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut'
+        });
+
+        // Ambient light rays from top
+        this.createLightRays(width, height);
+    }
+
+    createCitySilhouette(width, height) {
+        const buildings = this.add.graphics();
+        buildings.setDepth(DEPTH.BACKGROUND + 1);
+
+        // Draw distant buildings
+        const buildingColors = [0x1a1a2e, 0x16162e, 0x12122a];
+        for (let i = 0; i < width; i += Phaser.Math.Between(30, 60)) {
+            const bHeight = Phaser.Math.Between(40, 120);
+            const bWidth = Phaser.Math.Between(25, 50);
+            const color = Phaser.Math.RND.pick(buildingColors);
+
+            buildings.fillStyle(color, 0.6);
+            buildings.fillRect(i, height * 0.5 - bHeight, bWidth, bHeight + 50);
+
+            // Window lights
+            if (Math.random() > 0.3) {
+                const windowColor = Phaser.Math.RND.pick([0xffff00, 0x00ffff, 0xff00ff, 0xff6600]);
+                for (let w = 0; w < 3; w++) {
+                    if (Math.random() > 0.5) {
+                        buildings.fillStyle(windowColor, 0.4);
+                        buildings.fillRect(
+                            i + 5 + w * 8,
+                            height * 0.5 - bHeight + 10 + Math.floor(Math.random() * (bHeight - 20)),
+                            4, 4
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    createNeonFloor(width, height, floorY) {
+        // Main floor
+        const floor = this.add.graphics();
+        floor.fillGradientStyle(0x222244, 0x222244, 0x1a1a33, 0x1a1a33, 1);
+        floor.fillRect(0, floorY, width, height - floorY);
+        floor.setDepth(DEPTH.ARENA);
+
+        // Neon grid lines
+        const gridColor = 0x6644aa;
+        for (let i = 0; i < width; i += 60) {
+            const line = this.add.graphics();
+            line.lineStyle(1, gridColor, 0.3);
+            line.lineBetween(i, floorY, i, height);
+            line.setDepth(DEPTH.ARENA);
+        }
+
+        // Horizontal grid lines
+        for (let j = floorY; j < height; j += 30) {
+            const hLine = this.add.graphics();
+            hLine.lineStyle(1, gridColor, 0.2);
+            hLine.lineBetween(0, j, width, j);
+            hLine.setDepth(DEPTH.ARENA);
+        }
+
+        // Floor edge glow with animation
+        const edgeGlow = this.add.rectangle(width / 2, floorY + 2, width, 4, 0x00ffff, 0.6);
+        edgeGlow.setDepth(DEPTH.ARENA + 1);
+
+        this.tweens.add({
+            targets: edgeGlow,
+            alpha: { from: 0.6, to: 0.3 },
+            duration: 1000,
+            yoyo: true,
+            repeat: -1
+        });
+
+        // Side edge glows
+        const leftEdge = this.add.rectangle(2, floorY + (height - floorY) / 2, 4, height - floorY, 0x00ffff, 0.4);
+        const rightEdge = this.add.rectangle(width - 2, floorY + (height - floorY) / 2, 4, height - floorY, 0xff00ff, 0.4);
+        leftEdge.setDepth(DEPTH.ARENA + 1);
+        rightEdge.setDepth(DEPTH.ARENA + 1);
+
+        this.tweens.add({
+            targets: [leftEdge, rightEdge],
+            alpha: { from: 0.4, to: 0.15 },
+            duration: 1500,
+            yoyo: true,
+            repeat: -1
+        });
+    }
+
+    createElectricArcs(width, floorY) {
+        // Create periodic electric arc effect
+        this.time.addEvent({
+            delay: 3000,
+            callback: () => {
+                if (this.matchState === 'match_end') return;
+
+                // Random side
+                const leftSide = Math.random() > 0.5;
+                const startX = leftSide ? 30 : width - 30;
+                const startY = floorY - 150;
+
+                // Draw electric arc
+                const arc = this.add.graphics();
+                arc.setDepth(DEPTH.ARENA + 2);
+                arc.lineStyle(2, 0x00ffff, 0.8);
+
+                let x = startX;
+                let y = startY;
+                arc.moveTo(x, y);
+
+                for (let i = 0; i < 5; i++) {
+                    x += (leftSide ? 1 : -1) * Phaser.Math.Between(10, 30);
+                    y += Phaser.Math.Between(15, 30);
+                    arc.lineTo(x, y);
+                }
+                arc.stroke();
+
+                // Flash effect
+                this.tweens.add({
+                    targets: arc,
+                    alpha: 0,
+                    duration: 200,
+                    onComplete: () => arc.destroy()
+                });
+            },
+            loop: true
+        });
+    }
+
+    createScanlines(width, height) {
+        const scanlines = this.add.graphics();
+        scanlines.setDepth(DEPTH.EFFECTS_FRONT + 10);
+        scanlines.setAlpha(0.03);
+
+        for (let y = 0; y < height; y += 3) {
+            scanlines.lineStyle(1, 0x000000, 1);
+            scanlines.lineBetween(0, y, width, y);
+        }
+    }
+
+    createFloatingParticles(width, height, floorY) {
+        // Floating dust/energy particles
+        for (let i = 0; i < 30; i++) {
+            const x = Phaser.Math.Between(50, width - 50);
+            const y = Phaser.Math.Between(100, floorY - 50);
+            const size = Phaser.Math.FloatBetween(1, 3);
+            const color = Phaser.Math.RND.pick([0xffffff, 0x00ffff, 0xff00ff, 0xffff00]);
+            const particle = this.add.circle(x, y, size, color, Phaser.Math.FloatBetween(0.2, 0.5));
+            particle.setDepth(DEPTH.ARENA + 3);
+
+            // Float upward
+            this.tweens.add({
+                targets: particle,
+                y: particle.y - Phaser.Math.Between(100, 200),
+                x: particle.x + Phaser.Math.Between(-50, 50),
+                alpha: 0,
+                duration: Phaser.Math.Between(4000, 8000),
+                repeat: -1,
+                delay: Phaser.Math.Between(0, 3000),
+                onRepeat: () => {
+                    particle.x = Phaser.Math.Between(50, width - 50);
+                    particle.y = Phaser.Math.Between(floorY - 100, floorY);
+                    particle.alpha = Phaser.Math.FloatBetween(0.2, 0.5);
+                }
+            });
+        }
+    }
+
+    createLightRays(width, height) {
+        // Ambient light rays from above
+        for (let i = 0; i < 3; i++) {
+            const ray = this.add.graphics();
+            ray.setDepth(DEPTH.BACKGROUND + 3);
+
+            const rayX = width * 0.25 + i * (width * 0.25);
+            const rayWidth = 80;
+
+            ray.fillGradientStyle(0xffffff, 0xffffff, 0xffffff, 0xffffff, 1, 1, 0, 0);
+            ray.fillTriangle(
+                rayX - rayWidth / 2, 0,
+                rayX + rayWidth / 2, 0,
+                rayX, height * 0.6
+            );
+            ray.setAlpha(0.02);
+
+            this.tweens.add({
+                targets: ray,
+                alpha: { from: 0.02, to: 0.05 },
+                duration: Phaser.Math.Between(3000, 5000),
+                yoyo: true,
+                repeat: -1,
+                delay: i * 800
+            });
+        }
     }
 
     createPillar(x, floorY, color) {
@@ -139,67 +361,146 @@ export default class FightScene extends Phaser.Scene {
         // Health bars container
         this.uiContainer = this.add.container(0, 0).setDepth(DEPTH.UI);
 
-        // P1 Health bar (left side)
-        this.p1HealthBg = this.add.rectangle(30, 30, 350, 30, 0x333333);
+        const p1Color = FIGHTERS[this.player1Id].color;
+        const p2Color = FIGHTERS[this.player2Id].color;
+
+        // P1 Health bar frame with glow
+        this.p1HealthGlow = this.add.rectangle(30, 30, 360, 38, p1Color, 0.3);
+        this.p1HealthGlow.setOrigin(0, 0.5);
+        this.uiContainer.add(this.p1HealthGlow);
+
+        // P1 Health bar outer frame
+        const p1Frame = this.add.graphics();
+        p1Frame.lineStyle(3, 0x00ffff, 0.8);
+        p1Frame.strokeRoundedRect(28, 13, 354, 34, 4);
+        this.uiContainer.add(p1Frame);
+
+        this.p1HealthBg = this.add.rectangle(30, 30, 350, 30, 0x111122);
         this.p1HealthBg.setOrigin(0, 0.5);
         this.uiContainer.add(this.p1HealthBg);
 
-        this.p1HealthBar = this.add.rectangle(32, 30, 346, 26, FIGHTERS[this.player1Id].color);
+        // P1 Health bar with gradient effect (layered bars)
+        this.p1HealthBarBg = this.add.rectangle(32, 30, 346, 26, 0x004444);
+        this.p1HealthBarBg.setOrigin(0, 0.5);
+        this.uiContainer.add(this.p1HealthBarBg);
+
+        this.p1HealthBar = this.add.rectangle(32, 30, 346, 26, p1Color);
         this.p1HealthBar.setOrigin(0, 0.5);
         this.uiContainer.add(this.p1HealthBar);
 
-        // P1 name
+        // P1 Health bar shine
+        this.p1HealthShine = this.add.rectangle(32, 22, 346, 6, 0xffffff, 0.2);
+        this.p1HealthShine.setOrigin(0, 0.5);
+        this.uiContainer.add(this.p1HealthShine);
+
+        // P1 name with shadow
+        this.add.text(32, 52, FIGHTERS[this.player1Id].name.toUpperCase(), {
+            fontFamily: 'Arial Black',
+            fontSize: '16px',
+            color: '#000000'
+        }).setDepth(DEPTH.UI);
         this.add.text(30, 50, FIGHTERS[this.player1Id].name.toUpperCase(), {
             fontFamily: 'Arial Black',
-            fontSize: '14px',
+            fontSize: '16px',
             color: '#00ffff'
         }).setDepth(DEPTH.UI);
 
-        // P1 Special meter
-        this.p1SpecialBg = this.add.rectangle(30, 65, 150, 8, 0x333333);
+        // P1 Special meter with glow frame
+        const p1SpecialFrame = this.add.graphics();
+        p1SpecialFrame.lineStyle(2, 0xffff00, 0.5);
+        p1SpecialFrame.strokeRoundedRect(28, 68, 154, 12, 3);
+        this.uiContainer.add(p1SpecialFrame);
+
+        this.p1SpecialBg = this.add.rectangle(30, 74, 150, 8, 0x222200);
         this.p1SpecialBg.setOrigin(0, 0.5);
         this.uiContainer.add(this.p1SpecialBg);
 
-        this.p1SpecialBar = this.add.rectangle(30, 65, 0, 8, 0xffff00);
+        this.p1SpecialBar = this.add.rectangle(30, 74, 0, 8, 0xffff00);
         this.p1SpecialBar.setOrigin(0, 0.5);
         this.uiContainer.add(this.p1SpecialBar);
 
-        // P2 Health bar (right side)
-        this.p2HealthBg = this.add.rectangle(width - 30, 30, 350, 30, 0x333333);
+        // P1 Special ready glow (hidden initially)
+        this.p1SpecialGlow = this.add.rectangle(105, 74, 160, 16, 0xffff00, 0);
+        this.uiContainer.add(this.p1SpecialGlow);
+
+        // P2 Health bar frame with glow
+        this.p2HealthGlow = this.add.rectangle(width - 30, 30, 360, 38, p2Color, 0.3);
+        this.p2HealthGlow.setOrigin(1, 0.5);
+        this.uiContainer.add(this.p2HealthGlow);
+
+        // P2 Health bar outer frame
+        const p2Frame = this.add.graphics();
+        p2Frame.lineStyle(3, 0xff00ff, 0.8);
+        p2Frame.strokeRoundedRect(width - 382, 13, 354, 34, 4);
+        this.uiContainer.add(p2Frame);
+
+        this.p2HealthBg = this.add.rectangle(width - 30, 30, 350, 30, 0x111122);
         this.p2HealthBg.setOrigin(1, 0.5);
         this.uiContainer.add(this.p2HealthBg);
 
-        this.p2HealthBar = this.add.rectangle(width - 32, 30, 346, 26, FIGHTERS[this.player2Id].color);
+        // P2 Health bar with gradient
+        this.p2HealthBarBg = this.add.rectangle(width - 32, 30, 346, 26, 0x440044);
+        this.p2HealthBarBg.setOrigin(1, 0.5);
+        this.uiContainer.add(this.p2HealthBarBg);
+
+        this.p2HealthBar = this.add.rectangle(width - 32, 30, 346, 26, p2Color);
         this.p2HealthBar.setOrigin(1, 0.5);
         this.uiContainer.add(this.p2HealthBar);
 
-        // P2 name
+        // P2 Health bar shine
+        this.p2HealthShine = this.add.rectangle(width - 32, 22, 346, 6, 0xffffff, 0.2);
+        this.p2HealthShine.setOrigin(1, 0.5);
+        this.uiContainer.add(this.p2HealthShine);
+
+        // P2 name with shadow
+        this.add.text(width - 28, 52, (this.gameMode === 'vs_cpu' ? 'CPU ' : '') + FIGHTERS[this.player2Id].name.toUpperCase(), {
+            fontFamily: 'Arial Black',
+            fontSize: '16px',
+            color: '#000000'
+        }).setOrigin(1, 0).setDepth(DEPTH.UI);
         this.add.text(width - 30, 50, (this.gameMode === 'vs_cpu' ? 'CPU ' : '') + FIGHTERS[this.player2Id].name.toUpperCase(), {
             fontFamily: 'Arial Black',
-            fontSize: '14px',
+            fontSize: '16px',
             color: '#ff00ff'
         }).setOrigin(1, 0).setDepth(DEPTH.UI);
 
-        // P2 Special meter
-        this.p2SpecialBg = this.add.rectangle(width - 30, 65, 150, 8, 0x333333);
+        // P2 Special meter with glow frame
+        const p2SpecialFrame = this.add.graphics();
+        p2SpecialFrame.lineStyle(2, 0xffff00, 0.5);
+        p2SpecialFrame.strokeRoundedRect(width - 182, 68, 154, 12, 3);
+        this.uiContainer.add(p2SpecialFrame);
+
+        this.p2SpecialBg = this.add.rectangle(width - 30, 74, 150, 8, 0x222200);
         this.p2SpecialBg.setOrigin(1, 0.5);
         this.uiContainer.add(this.p2SpecialBg);
 
-        this.p2SpecialBar = this.add.rectangle(width - 30, 65, 0, 8, 0xffff00);
+        this.p2SpecialBar = this.add.rectangle(width - 30, 74, 0, 8, 0xffff00);
         this.p2SpecialBar.setOrigin(1, 0.5);
         this.uiContainer.add(this.p2SpecialBar);
 
-        // Timer
+        // P2 Special ready glow
+        this.p2SpecialGlow = this.add.rectangle(width - 105, 74, 160, 16, 0xffff00, 0);
+        this.uiContainer.add(this.p2SpecialGlow);
+
+        // Timer with glow effect
+        const timerGlow = this.add.circle(width / 2, 35, 35, 0xffffff, 0.1);
+        timerGlow.setDepth(DEPTH.UI - 1);
+
         this.timerText = this.add.text(width / 2, 35, this.roundTime.toString(), {
             fontFamily: 'Arial Black',
-            fontSize: '40px',
+            fontSize: '44px',
             color: '#ffffff',
             stroke: '#000000',
-            strokeThickness: 4
+            strokeThickness: 6
         }).setOrigin(0.5).setDepth(DEPTH.UI);
 
-        // Round indicator
-        this.roundText = this.add.text(width / 2, 70, `ROUND ${this.currentRound}`, {
+        // Round indicator with styling
+        const roundBg = this.add.graphics();
+        roundBg.fillStyle(0x000000, 0.5);
+        roundBg.fillRoundedRect(width / 2 - 60, 60, 120, 24, 6);
+        roundBg.setDepth(DEPTH.UI - 1);
+
+        this.roundText = this.add.text(width / 2, 72, `ROUND ${this.currentRound}`, {
             fontFamily: 'Arial Black',
             fontSize: '16px',
             color: '#ffff00'
@@ -213,8 +514,17 @@ export default class FightScene extends Phaser.Scene {
             'P1: WASD + JKL | P2: Arrows + 123 (or CPU)', {
             fontFamily: 'Arial',
             fontSize: '12px',
-            color: '#666666'
+            color: '#555555'
         }).setOrigin(0.5).setDepth(DEPTH.UI);
+
+        // Start health bar glow pulse animation
+        this.tweens.add({
+            targets: [this.p1HealthGlow, this.p2HealthGlow],
+            alpha: { from: 0.3, to: 0.15 },
+            duration: 1500,
+            yoyo: true,
+            repeat: -1
+        });
     }
 
     createWinIndicators(width) {
@@ -674,6 +984,12 @@ export default class FightScene extends Phaser.Scene {
             // Build attacker's special meter
             if (!result.blocked) {
                 attacker.specialMeter = Math.min(attacker.maxSpecialMeter, attacker.specialMeter + hitbox.damage * 0.5);
+
+                // Screen effects based on attack type
+                this.triggerHitScreenEffects(hitbox.type, hitbox.damage);
+            } else {
+                // Block screen effect (lighter shake)
+                this.cameras.main.shake(50, 0.003);
             }
 
             // Deactivate hitbox
@@ -682,9 +998,116 @@ export default class FightScene extends Phaser.Scene {
             // Check for KO
             if (defender.health <= 0) {
                 const winner = defender === this.player2 ? 1 : 2;
+                this.triggerKOEffects();
                 this.endRound(winner);
             }
         }
+    }
+
+    triggerHitScreenEffects(attackType, damage) {
+        const camera = this.cameras.main;
+
+        // Camera shake based on attack type
+        switch (attackType) {
+            case 'special':
+                camera.shake(200, 0.015);
+                this.slowMotionEffect(150);
+                this.screenFlash(0xff00ff, 0.3);
+                break;
+            case 'uppercut':
+                camera.shake(150, 0.012);
+                this.slowMotionEffect(100);
+                break;
+            case 'sweep':
+                camera.shake(120, 0.01);
+                break;
+            case 'kick':
+                camera.shake(80, 0.008);
+                break;
+            case 'punch':
+                camera.shake(50, 0.005);
+                break;
+        }
+
+        // Extra effects for heavy damage
+        if (damage >= 15) {
+            this.screenFlash(0xff0000, 0.15);
+        }
+    }
+
+    triggerKOEffects() {
+        const camera = this.cameras.main;
+        const { width, height } = camera;
+
+        // Dramatic slow motion
+        this.slowMotionEffect(500);
+
+        // Heavy screen shake
+        camera.shake(400, 0.02);
+
+        // Screen flash
+        this.screenFlash(0xffffff, 0.5);
+
+        // Zoom in slightly
+        this.tweens.add({
+            targets: camera,
+            zoom: 1.1,
+            duration: 300,
+            yoyo: true,
+            ease: 'Power2'
+        });
+
+        // KO text flash
+        const koText = this.add.text(width / 2, height / 2, 'K.O.!', {
+            fontFamily: 'Arial Black',
+            fontSize: '80px',
+            color: '#ff0000',
+            stroke: '#000000',
+            strokeThickness: 10
+        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY).setAlpha(0).setScale(3);
+
+        this.tweens.add({
+            targets: koText,
+            alpha: 1,
+            scale: 1,
+            duration: 300,
+            ease: 'Back.out',
+            onComplete: () => {
+                this.tweens.add({
+                    targets: koText,
+                    alpha: 0,
+                    y: koText.y - 50,
+                    duration: 800,
+                    delay: 500,
+                    onComplete: () => koText.destroy()
+                });
+            }
+        });
+    }
+
+    slowMotionEffect(duration) {
+        // Slow down time scale temporarily
+        this.tweens.timeScale = 0.3;
+        this.time.timeScale = 0.3;
+
+        this.time.delayedCall(duration * 0.3, () => {
+            this.tweens.timeScale = 1;
+            this.time.timeScale = 1;
+        });
+    }
+
+    screenFlash(color, intensity) {
+        const { width, height } = this.cameras.main;
+
+        const flash = this.add.rectangle(width / 2, height / 2, width, height, color, intensity);
+        flash.setDepth(DEPTH.EFFECTS_FRONT + 5);
+
+        this.tweens.add({
+            targets: flash,
+            alpha: 0,
+            duration: 150,
+            onComplete: () => flash.destroy()
+        });
     }
 
     updateUI() {
@@ -695,17 +1118,25 @@ export default class FightScene extends Phaser.Scene {
         this.p1HealthBar.scaleX = Math.max(0, p1HealthPercent);
         this.p2HealthBar.scaleX = Math.max(0, p2HealthPercent);
 
-        // Health bar color based on health
+        // Update health bar shine width
+        this.p1HealthShine.scaleX = Math.max(0, p1HealthPercent);
+        this.p2HealthShine.scaleX = Math.max(0, p2HealthPercent);
+
+        // Health bar color based on health with smooth transitions
         if (p1HealthPercent < 0.25) {
             this.p1HealthBar.setFillStyle(0xff0000);
+            this.p1HealthGlow.setFillStyle(0xff0000, 0.4);
         } else if (p1HealthPercent < 0.5) {
-            this.p1HealthBar.setFillStyle(0xffff00);
+            this.p1HealthBar.setFillStyle(0xffaa00);
+            this.p1HealthGlow.setFillStyle(0xffaa00, 0.3);
         }
 
         if (p2HealthPercent < 0.25) {
             this.p2HealthBar.setFillStyle(0xff0000);
+            this.p2HealthGlow.setFillStyle(0xff0000, 0.4);
         } else if (p2HealthPercent < 0.5) {
-            this.p2HealthBar.setFillStyle(0xffff00);
+            this.p2HealthBar.setFillStyle(0xffaa00);
+            this.p2HealthGlow.setFillStyle(0xffaa00, 0.3);
         }
 
         // Update special meters
@@ -715,17 +1146,38 @@ export default class FightScene extends Phaser.Scene {
         this.p1SpecialBar.width = 150 * p1SpecialPercent;
         this.p2SpecialBar.width = 150 * p2SpecialPercent;
 
-        // Flash when special is ready
+        // Special meter ready effects
         if (p1SpecialPercent >= 1) {
             this.p1SpecialBar.setFillStyle(0xff00ff);
+            if (this.p1SpecialGlow.alpha === 0) {
+                // Start glow animation when special becomes ready
+                this.tweens.add({
+                    targets: this.p1SpecialGlow,
+                    alpha: { from: 0, to: 0.4 },
+                    duration: 300,
+                    yoyo: true,
+                    repeat: -1
+                });
+            }
         } else {
             this.p1SpecialBar.setFillStyle(0xffff00);
+            this.p1SpecialGlow.alpha = 0;
         }
 
         if (p2SpecialPercent >= 1) {
             this.p2SpecialBar.setFillStyle(0xff00ff);
+            if (this.p2SpecialGlow.alpha === 0) {
+                this.tweens.add({
+                    targets: this.p2SpecialGlow,
+                    alpha: { from: 0, to: 0.4 },
+                    duration: 300,
+                    yoyo: true,
+                    repeat: -1
+                });
+            }
         } else {
             this.p2SpecialBar.setFillStyle(0xffff00);
+            this.p2SpecialGlow.alpha = 0;
         }
     }
 
