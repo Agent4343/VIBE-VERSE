@@ -17,16 +17,22 @@ export const gameConfig = {
     parent: 'game-container',
     backgroundColor: '#0a0a2e',  // Deep space blue
 
-    // Base dimensions (16:9 aspect ratio) - smaller for mobile
-    width: 800,
-    height: 450,
+    // Base dimensions (16:9 aspect ratio)
+    width: 960,
+    height: 540,
 
-    // Responsive scaling - RESIZE mode works better on mobile
+    // Responsive scaling - FIT ensures full game is always visible
     scale: {
-        mode: Phaser.Scale.RESIZE,
+        mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: '100%',
-        height: '100%'
+        min: {
+            width: 480,
+            height: 270
+        },
+        max: {
+            width: 1920,
+            height: 1080
+        }
     },
 
     // Physics configuration

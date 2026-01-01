@@ -934,37 +934,51 @@ export default class GameScene extends Phaser.Scene {
     }
 
     createTouchControls() {
-        // Get current screen dimensions
-        const screenWidth = this.cameras.main.width;
-        const screenHeight = this.cameras.main.height;
+        // Fixed dimensions for FIT mode (game is 960x540)
+        const gameWidth = 960;
+        const gameHeight = 540;
 
-        // Joystick size scales with screen
-        const joystickSize = Math.min(60, screenHeight * 0.12);
-        const thumbSize = joystickSize * 0.4;
-        const padding = joystickSize + 20;
+        // Joystick settings
+        const joystickSize = 50;
+        const thumbSize = 20;
+        const defaultX = 80;
+        const defaultY = gameHeight - 80;
 
-        // Virtual joystick area (bottom-left, scaled for screen)
-        this.joystickBase = this.add.circle(padding, screenHeight - padding, joystickSize, 0xffffff, 0.2);
+        // Virtual joystick area (bottom-left)
+        this.joystickBase = this.add.circle(defaultX, defaultY, joystickSize, 0xffffff, 0.25);
         this.joystickBase.setScrollFactor(0).setDepth(DEPTH.UI);
-        this.joystickBase.setStrokeStyle(3, 0x00ffff, 0.6);
+        this.joystickBase.setStrokeStyle(3, 0x00ffff, 0.8);
 
-        this.joystickThumb = this.add.circle(padding, screenHeight - padding, thumbSize, 0x00ffff, 0.5);
+        this.joystickThumb = this.add.circle(defaultX, defaultY, thumbSize, 0x00ffff, 0.6);
         this.joystickThumb.setScrollFactor(0).setDepth(DEPTH.UI + 1);
 
-        this.joystickActive = false;
-        this.joystickOrigin = { x: padding, y: screenHeight - padding };
-        this.joystickMaxDist = joystickSize * 0.8;
+        // Instructions hint
+        this.joystickHint = this.add.text(defaultX, defaultY - joystickSize - 15, 'DRAG TO MOVE', {
+            fontSize: '12px',
+            color: '#00ffff',
+            align: 'center'
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH.UI).setAlpha(0.7);
 
-        // Touch handlers - use worldX/worldY for correct coordinates
+        // Fade out hint after 3 seconds
+        this.time.delayedCall(3000, () => {
+            this.tweens.add({ targets: this.joystickHint, alpha: 0, duration: 1000 });
+        });
+
+        this.joystickActive = false;
+        this.joystickOrigin = { x: defaultX, y: defaultY };
+        this.joystickMaxDist = 40;
+        this.joystickDefaultPos = { x: defaultX, y: defaultY };
+
+        // Touch handlers
         this.input.on('pointerdown', (pointer) => {
-            // Check if touch is on left half of screen
-            const currentWidth = this.cameras.main.width;
-            if (pointer.x < currentWidth / 2) {
+            // Left half of screen activates joystick
+            if (pointer.x < gameWidth / 2) {
                 this.joystickActive = true;
                 this.joystickOrigin = { x: pointer.x, y: pointer.y };
                 this.joystickBase.setPosition(pointer.x, pointer.y);
                 this.joystickThumb.setPosition(pointer.x, pointer.y);
-                this.joystickBase.setAlpha(0.4);
+                this.joystickBase.setAlpha(0.5);
+                this.joystickBase.setScale(1.1);
             }
         });
 
@@ -989,12 +1003,16 @@ export default class GameScene extends Phaser.Scene {
             if (this.joystickActive) {
                 this.joystickActive = false;
                 this.joystickVector.set(0, 0);
-                // Reset to default position
-                const currentHeight = this.cameras.main.height;
-                const resetPadding = Math.min(60, currentHeight * 0.12) + 20;
-                this.joystickBase.setPosition(resetPadding, currentHeight - resetPadding);
-                this.joystickThumb.setPosition(resetPadding, currentHeight - resetPadding);
-                this.joystickBase.setAlpha(0.2);
+                // Animate back to default position
+                this.tweens.add({
+                    targets: [this.joystickBase, this.joystickThumb],
+                    x: this.joystickDefaultPos.x,
+                    y: this.joystickDefaultPos.y,
+                    duration: 150,
+                    ease: 'Back.out'
+                });
+                this.joystickBase.setAlpha(0.25);
+                this.joystickBase.setScale(1);
             }
         });
     }
