@@ -970,6 +970,8 @@ export default class GameScene extends Phaser.Scene {
             if (nextLevel) {
                 // Auto-advance countdown
                 let countdown = 3;
+                console.log('Next level available:', nextLevel, 'Starting countdown...');
+
                 const countdownText = this.add.text(
                     this.cameras.main.scrollX + width/2,
                     this.cameras.main.scrollY + height/2 + 50,
@@ -982,10 +984,12 @@ export default class GameScene extends Phaser.Scene {
                     delay: 1000,
                     callback: () => {
                         countdown--;
+                        console.log('Countdown:', countdown);
                         if (countdown > 0) {
                             countdownText.setText(`Next level in ${countdown}...`);
                         } else {
                             countdownText.setText('GO!');
+                            console.log('Countdown finished, calling goToNextLevel...');
                             this.time.delayedCall(300, () => this.goToNextLevel());
                         }
                     },
@@ -1060,17 +1064,22 @@ export default class GameScene extends Phaser.Scene {
 
     goToNextLevel() {
         const nextLevel = this.getNextLevel();
+        console.log('goToNextLevel called, nextLevel:', nextLevel);
+
         if (!nextLevel) {
+            console.log('No next level, going to menu');
             this.scene.start('MenuScene');
             return;
         }
 
         // Update registry with next level
         this.registry.set('selectedLevel', nextLevel);
+        console.log('Starting level:', nextLevel.chapter, '-', nextLevel.level);
 
         // Transition to next level
         this.cameras.main.fadeOut(300);
         this.cameras.main.once('camerafadeoutcomplete', () => {
+            console.log('Fade complete, starting GameScene');
             this.scene.start('GameScene', { level: nextLevel });
         });
     }
