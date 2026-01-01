@@ -61,10 +61,8 @@ function initGame() {
         }
     });
 
-    // Handle window resize
-    window.addEventListener('resize', () => {
-        game.scale.resize(window.innerWidth, window.innerHeight);
-    });
+    // Note: Do NOT manually resize in FIT mode - Phaser handles it automatically
+    // The FIT scale mode maintains aspect ratio and scales the canvas appropriately
 
     return game;
 }

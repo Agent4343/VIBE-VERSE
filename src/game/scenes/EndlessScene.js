@@ -286,46 +286,72 @@ export default class EndlessScene extends Phaser.Scene {
     }
 
     createTouchControls() {
-        // Fixed dimensions for FIT mode (game is 960x540)
-        const gameWidth = 960;
-        const gameHeight = 540;
+        // Get actual game dimensions from scale manager
+        // In FIT mode, these are the internal game coordinates (960x540)
+        const gameWidth = this.scale.gameSize.width;
+        const gameHeight = this.scale.gameSize.height;
 
-        // Joystick settings
-        const joystickSize = 50;
-        const thumbSize = 20;
-        const defaultX = 80;
-        const defaultY = gameHeight - 80;
+        // Joystick settings - use percentage of game height for responsive sizing
+        const joystickSize = Math.min(50, gameHeight * 0.1);
+        const thumbSize = joystickSize * 0.4;
+        const margin = gameHeight * 0.15;
+        const defaultX = margin;
+        const defaultY = gameHeight - margin;
 
         // Virtual joystick area (bottom-left)
-        this.joystickBase = this.add.circle(defaultX, defaultY, joystickSize, 0xffffff, 0.25);
-        this.joystickBase.setScrollFactor(0).setDepth(DEPTH.UI);
-        this.joystickBase.setStrokeStyle(3, 0x00ffff, 0.8);
+        this.joystickBase = this.add.circle(defaultX, defaultY, joystickSize, 0xffffff, 0.3);
+        this.joystickBase.setScrollFactor(0).setDepth(DEPTH.UI + 10);
+        this.joystickBase.setStrokeStyle(3, 0x00ffff, 0.9);
 
-        this.joystickThumb = this.add.circle(defaultX, defaultY, thumbSize, 0x00ffff, 0.6);
-        this.joystickThumb.setScrollFactor(0).setDepth(DEPTH.UI + 1);
+        this.joystickThumb = this.add.circle(defaultX, defaultY, thumbSize, 0x00ffff, 0.8);
+        this.joystickThumb.setScrollFactor(0).setDepth(DEPTH.UI + 11);
+
+        // Instructions hint
+        this.joystickHint = this.add.text(defaultX, defaultY - joystickSize - 15, 'DRAG TO MOVE', {
+            fontSize: '14px',
+            fontFamily: 'Arial',
+            color: '#00ffff',
+            align: 'center'
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH.UI + 10).setAlpha(0.8);
+
+        // Fade out hint after 3 seconds
+        this.time.delayedCall(3000, () => {
+            this.tweens.add({ targets: this.joystickHint, alpha: 0, duration: 1000 });
+        });
 
         this.joystickActive = false;
         this.joystickOrigin = { x: defaultX, y: defaultY };
-        this.joystickMaxDist = 40;
+        this.joystickMaxDist = joystickSize * 0.8;
         this.joystickDefaultPos = { x: defaultX, y: defaultY };
+        this.activePointerId = null;
 
-        // Touch handlers
+        // Touch handlers - use pointer ID to track specific touch
         this.input.on('pointerdown', (pointer) => {
-            if (pointer.x < gameWidth / 2) {
+            // Get game coordinates - Phaser automatically transforms in FIT mode
+            const x = pointer.x;
+            const y = pointer.y;
+
+            // Left half of screen activates joystick
+            if (x < gameWidth / 2 && !this.joystickActive) {
                 this.joystickActive = true;
-                this.joystickOrigin = { x: pointer.x, y: pointer.y };
-                this.joystickBase.setPosition(pointer.x, pointer.y);
-                this.joystickThumb.setPosition(pointer.x, pointer.y);
-                this.joystickBase.setAlpha(0.5);
+                this.activePointerId = pointer.id;
+                this.joystickOrigin = { x: x, y: y };
+                this.joystickBase.setPosition(x, y);
+                this.joystickThumb.setPosition(x, y);
+                this.joystickBase.setAlpha(0.6);
                 this.joystickBase.setScale(1.1);
             }
         });
 
         this.input.on('pointermove', (pointer) => {
-            if (this.joystickActive && pointer.isDown) {
+            // Only respond to the pointer that started the joystick
+            if (this.joystickActive && pointer.id === this.activePointerId && pointer.isDown) {
+                const x = pointer.x;
+                const y = pointer.y;
+
                 const maxDist = this.joystickMaxDist;
-                const dx = pointer.x - this.joystickOrigin.x;
-                const dy = pointer.y - this.joystickOrigin.y;
+                const dx = x - this.joystickOrigin.x;
+                const dy = y - this.joystickOrigin.y;
                 const dist = Math.min(maxDist, Math.sqrt(dx * dx + dy * dy));
                 const angle = Math.atan2(dy, dx);
 
@@ -337,9 +363,11 @@ export default class EndlessScene extends Phaser.Scene {
             }
         });
 
-        this.input.on('pointerup', () => {
-            if (this.joystickActive) {
+        this.input.on('pointerup', (pointer) => {
+            // Only release if it's the same pointer that started
+            if (this.joystickActive && pointer.id === this.activePointerId) {
                 this.joystickActive = false;
+                this.activePointerId = null;
                 this.joystickVector.set(0, 0);
                 this.tweens.add({
                     targets: [this.joystickBase, this.joystickThumb],
@@ -348,7 +376,20 @@ export default class EndlessScene extends Phaser.Scene {
                     duration: 150,
                     ease: 'Back.out'
                 });
-                this.joystickBase.setAlpha(0.25);
+                this.joystickBase.setAlpha(0.3);
+                this.joystickBase.setScale(1);
+            }
+        });
+
+        // Also handle pointerupoutside for when touch moves off screen
+        this.input.on('pointerupoutside', (pointer) => {
+            if (this.joystickActive && pointer.id === this.activePointerId) {
+                this.joystickActive = false;
+                this.activePointerId = null;
+                this.joystickVector.set(0, 0);
+                this.joystickBase.setPosition(this.joystickDefaultPos.x, this.joystickDefaultPos.y);
+                this.joystickThumb.setPosition(this.joystickDefaultPos.x, this.joystickDefaultPos.y);
+                this.joystickBase.setAlpha(0.3);
                 this.joystickBase.setScale(1);
             }
         });
