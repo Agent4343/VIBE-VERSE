@@ -99,18 +99,12 @@ export default class BootScene extends Phaser.Scene {
         bgGraphics.generateTexture('loading-bg', 1280, 720);
         bgGraphics.destroy();
 
-        // Create spinner texture (simple circle frames for animation)
+        // Create a simple spinner texture (single frame - will rotate via tween)
         const spinnerGraphics = this.make.graphics({ x: 0, y: 0, add: false });
-        // Create 8 frames for spinner animation
-        for (let i = 0; i < 8; i++) {
-            const x = i * 64 + 32;
-            spinnerGraphics.lineStyle(4, 0x00ffff, 1);
-            spinnerGraphics.beginPath();
-            const startAngle = (i * Math.PI) / 4;
-            spinnerGraphics.arc(x, 32, 24, startAngle, startAngle + Math.PI * 1.5);
-            spinnerGraphics.strokePath();
-        }
-        spinnerGraphics.generateTexture('loading-spinner', 512, 64);
+        spinnerGraphics.lineStyle(4, 0x00ffff, 1);
+        spinnerGraphics.arc(32, 32, 24, 0, Math.PI * 1.5);
+        spinnerGraphics.strokePath();
+        spinnerGraphics.generateTexture('loading-spinner', 64, 64);
         spinnerGraphics.destroy();
     }
 
@@ -118,17 +112,6 @@ export default class BootScene extends Phaser.Scene {
      * Create scene elements and transition to PreloadScene
      */
     create() {
-        // Create loading spinner animation
-        this.anims.create({
-            key: 'spin',
-            frames: this.anims.generateFrameNumbers('loading-spinner', {
-                start: 0,
-                end: 7
-            }),
-            frameRate: 10,
-            repeat: -1
-        });
-
         // Log system info
         console.log('System Info:', {
             webGL: this.hasWebGL,

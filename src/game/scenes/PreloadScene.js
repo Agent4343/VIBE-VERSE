@@ -31,9 +31,15 @@ export default class PreloadScene extends Phaser.Scene {
         this.add.image(centerX, centerY - 100, 'logo')
             .setScale(0.5);
 
-        // Loading spinner
-        this.spinner = this.add.sprite(centerX, centerY + 50, 'loading-spinner')
-            .play('spin');
+        // Loading spinner (rotate via tween instead of animation)
+        this.spinner = this.add.image(centerX, centerY + 50, 'loading-spinner');
+        this.tweens.add({
+            targets: this.spinner,
+            angle: 360,
+            duration: 1000,
+            repeat: -1,
+            ease: 'Linear'
+        });
 
         // Progress bar background
         this.progressBg = this.add.graphics();
@@ -164,7 +170,7 @@ export default class PreloadScene extends Phaser.Scene {
                 if (progress >= 1) {
                     this.loadComplete = true;
                     this.loadingText.setText('Tap anywhere to start!');
-                    this.spinner.stop();
+                    this.tweens.killTweensOf(this.spinner);
                     this.spinner.setVisible(false);
                 }
             }
