@@ -2,10 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0a0a2e">
+    <meta name="screen-orientation" content="landscape">
 
     <title>Cosmic Cadet Academy</title>
     <meta name="description" content="Adventure through space and learn along the way! A puzzle-adventure game for kids aged 10-14.">
@@ -31,25 +33,27 @@
             overflow: hidden;
             background-color: #0a0a2e;
             font-family: Arial, sans-serif;
-            touch-action: none;
+            touch-action: manipulation;
             -webkit-touch-callout: none;
             -webkit-user-select: none;
             user-select: none;
+            position: fixed;
+            top: 0;
+            left: 0;
         }
 
         #game-container {
             width: 100%;
             height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            touch-action: none;
+            position: fixed;
+            top: 0;
+            left: 0;
         }
 
         #game-container canvas {
-            max-width: 100%;
-            max-height: 100%;
-            touch-action: none;
+            width: 100% !important;
+            height: 100% !important;
+            display: block;
         }
 
         /* Initial loading screen */
@@ -105,13 +109,69 @@
             max-width: 300px;
         }
 
+        /* Rotate device message */
+        #rotate-message {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #0a0a2e 0%, #1a1a4e 100%);
+            z-index: 99999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #00ffff;
+            text-align: center;
+            padding: 20px;
+        }
+
+        #rotate-message .rotate-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+            animation: rotate-hint 2s ease-in-out infinite;
+        }
+
+        #rotate-message .rotate-text {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        #rotate-message .rotate-subtext {
+            font-size: 14px;
+            color: #888;
+        }
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        @keyframes rotate-hint {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(90deg); }
+        }
+
+        /* Show rotate message on portrait mobile */
+        @media screen and (max-width: 900px) and (orientation: portrait) {
+            #rotate-message {
+                display: flex;
+            }
+            #game-container {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Rotate device message for portrait mode -->
+    <div id="rotate-message">
+        <div class="rotate-icon">📱</div>
+        <div class="rotate-text">Rotate Your Device</div>
+        <div class="rotate-subtext">This game plays best in landscape mode</div>
+    </div>
+
     <!-- Initial loader -->
     <div id="initial-loader">
         <div class="loader-title">COSMIC CADET ACADEMY</div>
@@ -151,6 +211,13 @@
                 loader.classList.add('hidden');
             }
         };
+
+        // Try to lock to landscape on mobile
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(function() {
+                // Orientation lock not supported, that's ok
+            });
+        }
 
         updateStatus('Loading scripts...');
     </script>

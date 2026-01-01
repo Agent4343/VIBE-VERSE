@@ -17,22 +17,16 @@ export const gameConfig = {
     parent: 'game-container',
     backgroundColor: '#0a0a2e',  // Deep space blue
 
-    // Base dimensions (16:9 aspect ratio)
-    width: 1280,
-    height: 720,
+    // Base dimensions (16:9 aspect ratio) - smaller for mobile
+    width: 800,
+    height: 450,
 
-    // Responsive scaling
+    // Responsive scaling - RESIZE mode works better on mobile
     scale: {
-        mode: Phaser.Scale.FIT,
+        mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH,
-        min: {
-            width: 320,
-            height: 180
-        },
-        max: {
-            width: 1920,
-            height: 1080
-        }
+        width: '100%',
+        height: '100%'
     },
 
     // Physics configuration
@@ -41,8 +35,6 @@ export const gameConfig = {
         arcade: {
             // No gravity by default (space environment)
             gravity: { y: 0 },
-            // Enable debug visuals in development
-            debug: process.env.NODE_ENV === 'development',
             // Collision tile bias for better edge handling
             tileBias: 16
         }
@@ -65,7 +57,7 @@ export const gameConfig = {
 
     // Input configuration
     input: {
-        activePointers: 2,         // Support multi-touch
+        activePointers: 3,         // Support multi-touch
         touch: {
             capture: true
         }
