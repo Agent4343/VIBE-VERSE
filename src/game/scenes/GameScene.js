@@ -944,7 +944,7 @@ export default class GameScene extends Phaser.Scene {
                 width, height, 0x000000, 0.8
             ).setDepth(DEPTH.OVERLAY);
 
-            const title = this.add.text(
+            this.add.text(
                 this.cameras.main.scrollX + width/2,
                 this.cameras.main.scrollY + height/2 - 120,
                 '🎉 LEVEL COMPLETE! 🎉',
@@ -967,27 +967,43 @@ export default class GameScene extends Phaser.Scene {
                 { fontFamily: 'Arial', fontSize: '20px', color: '#ffff00' }
             ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1);
 
-            // Next Level button (primary action)
             if (nextLevel) {
-                const nextBtn = this.add.text(
+                // Auto-advance countdown
+                let countdown = 3;
+                const countdownText = this.add.text(
                     this.cameras.main.scrollX + width/2,
                     this.cameras.main.scrollY + height/2 + 50,
-                    '▶ NEXT LEVEL',
-                    { fontFamily: 'Arial Black', fontSize: '32px', color: '#00ff00' }
+                    `Next level in ${countdown}...`,
+                    { fontFamily: 'Arial Black', fontSize: '28px', color: '#00ff00' }
+                ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1);
+
+                // Countdown timer
+                const countdownTimer = this.time.addEvent({
+                    delay: 1000,
+                    callback: () => {
+                        countdown--;
+                        if (countdown > 0) {
+                            countdownText.setText(`Next level in ${countdown}...`);
+                        } else {
+                            countdownText.setText('GO!');
+                            this.time.delayedCall(300, () => this.goToNextLevel());
+                        }
+                    },
+                    repeat: 2
+                });
+
+                // Skip button (tap to go immediately)
+                const skipText = this.add.text(
+                    this.cameras.main.scrollX + width/2,
+                    this.cameras.main.scrollY + height/2 + 100,
+                    'Tap to skip',
+                    { fontFamily: 'Arial', fontSize: '18px', color: '#888888' }
                 ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1)
                     .setInteractive({ useHandCursor: true })
-                    .on('pointerover', function() { this.setScale(1.1); })
-                    .on('pointerout', function() { this.setScale(1); })
-                    .on('pointerdown', () => this.goToNextLevel());
-
-                // Pulsing effect on next level button
-                this.tweens.add({
-                    targets: nextBtn,
-                    scale: { from: 1, to: 1.05 },
-                    duration: 500,
-                    yoyo: true,
-                    repeat: -1
-                });
+                    .on('pointerdown', () => {
+                        countdownTimer.remove();
+                        this.goToNextLevel();
+                    });
             } else {
                 // All levels complete!
                 this.add.text(
@@ -996,31 +1012,28 @@ export default class GameScene extends Phaser.Scene {
                     '🏆 ALL LEVELS COMPLETE! 🏆',
                     { fontFamily: 'Arial Black', fontSize: '28px', color: '#ffd700' }
                 ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1);
+
+                this.add.text(
+                    this.cameras.main.scrollX + width/2,
+                    this.cameras.main.scrollY + height/2 + 100,
+                    'Back to Menu',
+                    { fontFamily: 'Arial', fontSize: '20px', color: '#888888' }
+                ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1)
+                    .setInteractive({ useHandCursor: true })
+                    .on('pointerdown', () => this.scene.start('MenuScene'));
             }
 
-            // Replay button
-            this.add.text(
-                this.cameras.main.scrollX + width/2,
-                this.cameras.main.scrollY + height/2 + 110,
-                '↻ Replay Level',
-                { fontFamily: 'Arial', fontSize: '20px', color: '#888888' }
-            ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1)
-                .setInteractive({ useHandCursor: true })
-                .on('pointerover', function() { this.setColor('#ffffff'); })
-                .on('pointerout', function() { this.setColor('#888888'); })
-                .on('pointerdown', () => this.scene.restart());
-
-            // Menu button
+            // Replay button (smaller, bottom)
             this.add.text(
                 this.cameras.main.scrollX + width/2,
                 this.cameras.main.scrollY + height/2 + 150,
-                'Back to Menu',
-                { fontFamily: 'Arial', fontSize: '18px', color: '#666666' }
+                '↻ Replay Level',
+                { fontFamily: 'Arial', fontSize: '16px', color: '#666666' }
             ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1)
                 .setInteractive({ useHandCursor: true })
                 .on('pointerover', function() { this.setColor('#888888'); })
                 .on('pointerout', function() { this.setColor('#666666'); })
-                .on('pointerdown', () => this.scene.start('MenuScene'));
+                .on('pointerdown', () => this.scene.restart());
         });
     }
 
