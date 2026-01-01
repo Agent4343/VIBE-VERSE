@@ -31,6 +31,11 @@
             overflow: hidden;
             background-color: #0a0a2e;
             font-family: 'Space Grotesk', 'Arial', sans-serif;
+            /* Prevent pull-to-refresh and other touch gestures */
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         #game-container {
@@ -39,11 +44,13 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            touch-action: none;
         }
 
         #game-container canvas {
             max-width: 100%;
             max-height: 100%;
+            touch-action: none;
         }
 
         /* Initial loading screen (before Phaser loads) */
@@ -65,6 +72,7 @@
         #initial-loader.hidden {
             opacity: 0;
             pointer-events: none;
+            visibility: hidden;
         }
 
         .loader-title {
@@ -128,7 +136,7 @@
             50% { opacity: 1; }
         }
     </style>
-  <script type="module" crossorigin src="/assets/main-CVnJhZxB.js"></script>
+  <script type="module" crossorigin src="/assets/main-BwjE0-Bj.js"></script>
 </head>
 <body>
     <!-- Initial loader (shown before Phaser is ready) -->
@@ -161,18 +169,28 @@
 
     <!-- Hide initial loader when Phaser is ready -->
     <script>
+        // Function to hide loader
+        function hideLoader() {
+            const loader = document.getElementById('initial-loader');
+            if (loader) {
+                loader.classList.add('hidden');
+                setTimeout(function() {
+                    loader.remove();
+                }, 500);
+            }
+        }
+
+        // Wait for page load, then hide after Phaser starts
         window.addEventListener('load', function() {
-            // Wait a moment for Phaser to initialize
-            setTimeout(function() {
-                const loader = document.getElementById('initial-loader');
-                if (loader) {
-                    loader.classList.add('hidden');
-                    setTimeout(function() {
-                        loader.remove();
-                    }, 500);
-                }
-            }, 1000);
+            // Give Phaser time to initialize
+            setTimeout(hideLoader, 1500);
         });
+
+        // Also hide on first touch/click (mobile fallback)
+        document.addEventListener('touchstart', function onFirstTouch() {
+            setTimeout(hideLoader, 100);
+            document.removeEventListener('touchstart', onFirstTouch);
+        }, { once: true });
     </script>
 </body>
 </html>

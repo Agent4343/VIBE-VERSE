@@ -848,9 +848,10 @@ export default class GameScene extends Phaser.Scene {
             .on('pointerout', function() { this.setColor('#888888'); })
             .on('pointerdown', () => this.scene.start('MenuScene'));
 
-        // Instructions (fades out)
+        // Instructions (fades out) - use reliable touch detection
+        const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
         const instructions = this.add.text(width / 2, height - 30,
-            this.sys.game.device.input.touch ?
+            isTouchDevice ?
             'Touch left side to move • Collect stars • Avoid asteroids!' :
             'Arrow keys/WASD to move • Collect stars • Avoid asteroids!', {
             fontFamily: 'Arial',
@@ -924,13 +925,18 @@ export default class GameScene extends Phaser.Scene {
             right: Phaser.Input.Keyboard.KeyCodes.D
         });
 
-        // Touch controls
-        if (this.sys.game.device.input.touch) {
+        // Joystick state (always initialize)
+        this.joystickVector = new Phaser.Math.Vector2();
+
+        // Always create touch controls (works on both mobile and desktop)
+        // Using more reliable touch detection
+        const isTouchDevice = ('ontouchstart' in window) ||
+                              (navigator.maxTouchPoints > 0) ||
+                              this.sys.game.device.input.touch;
+
+        if (isTouchDevice) {
             this.createTouchControls(width, height);
         }
-
-        // Joystick state
-        this.joystickVector = new Phaser.Math.Vector2();
     }
 
     createTouchControls(width, height) {

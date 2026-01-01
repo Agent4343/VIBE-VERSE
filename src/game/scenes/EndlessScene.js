@@ -277,12 +277,17 @@ export default class EndlessScene extends Phaser.Scene {
             right: Phaser.Input.Keyboard.KeyCodes.D
         });
 
-        // Touch controls
-        if (this.sys.game.device.input.touch) {
+        // Joystick state (always initialize)
+        this.joystickVector = new Phaser.Math.Vector2();
+
+        // Touch controls - use reliable touch detection
+        const isTouchDevice = ('ontouchstart' in window) ||
+                              (navigator.maxTouchPoints > 0) ||
+                              this.sys.game.device.input.touch;
+
+        if (isTouchDevice) {
             this.createTouchControls(width, height);
         }
-
-        this.joystickVector = new Phaser.Math.Vector2();
     }
 
     createTouchControls(width, height) {
