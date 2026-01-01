@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a0a2e">
+
+    <title>Cosmic Cadet Academy</title>
+    <meta name="description" content="Adventure through space and learn along the way! A puzzle-adventure game for kids aged 10-14.">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/ui/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/images/ui/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/ui/apple-touch-icon.png">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0a0a2e;
+            font-family: 'Space Grotesk', 'Arial', sans-serif;
+        }
+
+        #game-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #game-container canvas {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        /* Initial loading screen (before Phaser loads) */
+        #initial-loader {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #0a0a2e 0%, #2d1b4e 100%);
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+
+        #initial-loader.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loader-title {
+            color: #00ffff;
+            font-size: 32px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            margin-bottom: 40px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .loader-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(0, 255, 255, 0.3);
+            border-top: 4px solid #00ffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loader-text {
+            color: #888;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Stars background animation */
+        .stars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s ease-in-out infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Initial loader (shown before Phaser is ready) -->
+    <div id="initial-loader">
+        <div class="stars" id="stars"></div>
+        <div class="loader-title">Cosmic Cadet Academy</div>
+        <div class="loader-spinner"></div>
+        <div class="loader-text">Initializing engines...</div>
+    </div>
+
+    <!-- Phaser game container -->
+    <div id="game-container"></div>
+
+    <!-- Generate random stars for loading screen -->
+    <script>
+        (function() {
+            const starsContainer = document.getElementById('stars');
+            for (let i = 0; i < 50; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                starsContainer.appendChild(star);
+            }
+        })();
+    </script>
+
+    <!-- Main game script -->
+    <script type="module" src="/src/game/main.js"></script>
+
+    <!-- Hide initial loader when Phaser is ready -->
+    <script>
+        window.addEventListener('load', function() {
+            // Wait a moment for Phaser to initialize
+            setTimeout(function() {
+                const loader = document.getElementById('initial-loader');
+                if (loader) {
+                    loader.classList.add('hidden');
+                    setTimeout(function() {
+                        loader.remove();
+                    }, 500);
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

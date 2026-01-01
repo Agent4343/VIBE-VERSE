@@ -1,0 +1,67 @@
+{
+  "name": "cosmic-cadet-academy",
+  "version": "1.0.0",
+  "description": "A puzzle-adventure mobile game teaching space science to kids aged 10-14",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+    "dev:client": "vite",
+    "dev:server": "nodemon src/server/index.js",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "vite build",
+    "build:server": "echo 'Server build complete'",
+    "start": "node src/server/index.js",
+    "preview": "vite preview",
+    "lint": "eslint src/",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "db:migrate": "sequelize-cli db:migrate",
+    "db:seed": "sequelize-cli db:seed:all",
+    "db:reset": "sequelize-cli db:drop && sequelize-cli db:create && npm run db:migrate && npm run db:seed"
+  },
+  "keywords": [
+    "game",
+    "educational",
+    "space",
+    "puzzle",
+    "phaser",
+    "kids",
+    "mobile"
+  ],
+  "author": "Cosmic Cadet Academy Team",
+  "license": "MIT",
+  "dependencies": {
+    "phaser": "^3.70.0",
+    "socket.io-client": "^4.7.2",
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "sequelize": "^6.35.0",
+    "pg": "^8.11.3",
+    "pg-hstore": "^2.3.4",
+    "ioredis": "^5.3.2",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "morgan": "^1.10.0",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.1",
+    "dotenv": "^16.3.1",
+    "joi": "^17.11.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.2",
+    "eslint": "^8.54.0",
+    "vitest": "^1.0.0",
+    "@capacitor/cli": "^5.5.1",
+    "@capacitor/core": "^5.5.1",
+    "@capacitor/ios": "^5.5.1",
+    "@capacitor/android": "^5.5.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
