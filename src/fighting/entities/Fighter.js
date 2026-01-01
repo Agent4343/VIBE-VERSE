@@ -50,80 +50,57 @@ export default class Fighter {
     }
 
     createBody() {
-        const color = this.config.color;
-        const accent = this.config.accentColor;
+        const cfg = this.config;
+        const skin = cfg.skinTone;
+        const skinShadow = cfg.skinShadow;
+        const skinHighlight = cfg.skinHighlight;
+        const isFemale = cfg.gender === 'female';
+        const isMuscular = cfg.bodyType === 'muscular';
+        const isSlim = cfg.bodyType === 'slim';
 
-        // Glow effect behind fighter
-        this.glow = this.scene.add.circle(0, -25, 50, color, 0.15);
+        // Subtle power glow behind fighter
+        this.glow = this.scene.add.circle(0, -35, 55, cfg.color, 0.1);
         this.container.add(this.glow);
 
-        // Body (torso) with gradient effect
-        this.body = this.scene.add.graphics();
-        this.body.fillStyle(color, 1);
-        this.body.fillRoundedRect(-20, -50, 40, 50, 5);
-        // Body highlight
-        this.body.fillStyle(0xffffff, 0.2);
-        this.body.fillRoundedRect(-15, -48, 15, 20, 3);
+        // Ground shadow
+        this.shadow = this.scene.add.ellipse(0, 45, 50, 15, 0x000000, 0.3);
+        this.container.add(this.shadow);
 
-        // Head with better shading
-        this.head = this.scene.add.graphics();
-        this.head.fillStyle(color, 1);
-        this.head.fillCircle(0, -65, 18);
-        // Head highlight
-        this.head.fillStyle(0xffffff, 0.25);
-        this.head.fillCircle(-5, -70, 8);
-        // Eyes with glow
-        const eyeX = this.isPlayer1 ? 5 : -5;
-        this.head.fillStyle(0xffffff, 1);
-        this.head.fillCircle(eyeX - 3, -68, 5);
-        this.head.fillCircle(eyeX + 5, -68, 5);
-        this.head.fillStyle(0x000000, 1);
-        this.head.fillCircle(eyeX - 2, -68, 3);
-        this.head.fillCircle(eyeX + 6, -68, 3);
-        // Eye glow
-        this.head.fillStyle(accent, 0.8);
-        this.head.fillCircle(eyeX - 1, -69, 1);
-        this.head.fillCircle(eyeX + 7, -69, 1);
-
-        // Arms with muscle detail
-        this.leftArm = this.scene.add.graphics();
-        this.leftArm.fillStyle(color, 1);
-        this.leftArm.fillRoundedRect(-35, -45, 15, 40, 4);
-        this.leftArm.fillStyle(0xffffff, 0.15);
-        this.leftArm.fillRoundedRect(-33, -43, 5, 15, 2);
-
-        this.rightArm = this.scene.add.graphics();
-        this.rightArm.fillStyle(color, 1);
-        this.rightArm.fillRoundedRect(20, -45, 15, 40, 4);
-        this.rightArm.fillStyle(0xffffff, 0.15);
-        this.rightArm.fillRoundedRect(22, -43, 5, 15, 2);
-
-        // Fist glow (for punches)
-        this.fistGlow = this.scene.add.circle(27, -5, 10, accent, 0);
-        this.container.add(this.fistGlow);
-
-        // Legs with better styling
+        // === LEGS ===
         this.leftLeg = this.scene.add.graphics();
-        this.leftLeg.fillStyle(accent, 1);
-        this.leftLeg.fillRoundedRect(-18, 0, 14, 45, 4);
-        this.leftLeg.fillStyle(0x000000, 0.2);
-        this.leftLeg.fillRoundedRect(-16, 35, 10, 10, 2);
-
         this.rightLeg = this.scene.add.graphics();
-        this.rightLeg.fillStyle(accent, 1);
-        this.rightLeg.fillRoundedRect(4, 0, 14, 45, 4);
-        this.rightLeg.fillStyle(0x000000, 0.2);
-        this.rightLeg.fillRoundedRect(6, 35, 10, 10, 2);
+        this.drawLeg(this.leftLeg, -12, isFemale, isSlim, isMuscular);
+        this.drawLeg(this.rightLeg, 2, isFemale, isSlim, isMuscular);
 
-        // Foot glow (for kicks)
-        this.footGlow = this.scene.add.circle(11, 45, 12, accent, 0);
+        // === TORSO ===
+        this.body = this.scene.add.graphics();
+        this.drawTorso(isFemale, isSlim, isMuscular);
+
+        // === ARMS ===
+        this.leftArm = this.scene.add.graphics();
+        this.rightArm = this.scene.add.graphics();
+        this.drawArm(this.leftArm, -28, isFemale, isSlim, isMuscular);
+        this.drawArm(this.rightArm, 18, isFemale, isSlim, isMuscular);
+
+        // Fist/foot glow for attacks
+        this.fistGlow = this.scene.add.circle(28, -10, 12, cfg.accentColor, 0);
+        this.footGlow = this.scene.add.circle(10, 42, 14, cfg.accentColor, 0);
+        this.container.add(this.fistGlow);
         this.container.add(this.footGlow);
 
-        // Add all parts to container
-        this.container.add([this.leftLeg, this.rightLeg, this.body, this.leftArm, this.rightArm, this.head]);
+        // === HEAD ===
+        this.head = this.scene.add.graphics();
+        this.drawHead(isFemale);
 
-        // Fighter name label with glow
-        this.nameLabel = this.scene.add.text(0, -100, this.config.name, {
+        // === HAIR ===
+        this.hair = this.scene.add.graphics();
+        this.drawHair();
+
+        // Add all parts to container in correct order
+        this.container.add([this.leftLeg, this.rightLeg, this.body, this.leftArm, this.rightArm, this.head, this.hair]);
+
+        // Fighter name label
+        this.nameLabel = this.scene.add.text(0, -105, cfg.name, {
             fontFamily: 'Arial Black',
             fontSize: '14px',
             color: '#ffffff',
@@ -132,16 +109,385 @@ export default class Fighter {
         }).setOrigin(0.5);
         this.container.add(this.nameLabel);
 
-        // Idle glow pulse
+        // Subtle idle breathing animation
         this.scene.tweens.add({
             targets: this.glow,
-            alpha: { from: 0.15, to: 0.25 },
-            scale: { from: 1, to: 1.1 },
-            duration: 1000,
+            alpha: { from: 0.1, to: 0.2 },
+            scale: { from: 1, to: 1.05 },
+            duration: 1200,
             yoyo: true,
             repeat: -1,
             ease: 'Sine.inOut'
         });
+    }
+
+    drawLeg(graphics, xOffset, isFemale, isSlim, isMuscular) {
+        const cfg = this.config;
+        const legWidth = isMuscular ? 14 : (isSlim ? 10 : 12);
+        const thighWidth = isMuscular ? 16 : (isFemale ? 13 : 14);
+
+        // Shorts/pants
+        graphics.fillStyle(cfg.outfitBottom, 1);
+        graphics.fillRoundedRect(xOffset - 2, -2, thighWidth + 2, 22, 3);
+
+        // Pants shading
+        graphics.fillStyle(0x000000, 0.15);
+        graphics.fillRoundedRect(xOffset + thighWidth - 4, 0, 4, 18, 2);
+
+        // Pants highlight
+        graphics.fillStyle(0xffffff, 0.1);
+        graphics.fillRoundedRect(xOffset, 0, 4, 15, 2);
+
+        // Knee/shin - skin showing or pants
+        graphics.fillStyle(cfg.skinTone, 1);
+        graphics.fillRoundedRect(xOffset, 18, legWidth, 18, 3);
+
+        // Skin shading on leg
+        graphics.fillStyle(cfg.skinShadow, 1);
+        graphics.fillRoundedRect(xOffset + legWidth - 4, 19, 4, 15, 2);
+
+        // Skin highlight
+        graphics.fillStyle(cfg.skinHighlight, 0.4);
+        graphics.fillRoundedRect(xOffset + 1, 20, 3, 10, 1);
+
+        // Calf muscle definition
+        if (isMuscular) {
+            graphics.fillStyle(cfg.skinShadow, 0.3);
+            graphics.fillEllipse(xOffset + legWidth / 2, 25, legWidth - 2, 8);
+        }
+
+        // Boot
+        graphics.fillStyle(cfg.bootColor, 1);
+        graphics.fillRoundedRect(xOffset - 1, 34, legWidth + 2, 12, 3);
+
+        // Boot sole
+        graphics.fillStyle(0x111111, 1);
+        graphics.fillRect(xOffset - 1, 43, legWidth + 2, 3);
+
+        // Boot highlight
+        graphics.fillStyle(0xffffff, 0.15);
+        graphics.fillRoundedRect(xOffset, 35, 4, 8, 2);
+
+        // Boot strap/detail
+        graphics.lineStyle(1, 0x000000, 0.3);
+        graphics.lineBetween(xOffset, 38, xOffset + legWidth, 38);
+    }
+
+    drawTorso(isFemale, isSlim, isMuscular) {
+        const cfg = this.config;
+        const torsoWidth = isMuscular ? 44 : (isSlim ? 34 : 38);
+        const torsoHeight = isFemale ? 42 : 48;
+        const waistNarrow = isFemale ? 6 : (isMuscular ? 2 : 4);
+
+        // Tank top / shirt
+        this.body.fillStyle(cfg.outfitTop, 1);
+
+        // Draw torso shape (narrower at waist)
+        this.body.beginPath();
+        this.body.moveTo(-torsoWidth / 2 + waistNarrow, 0);
+        this.body.lineTo(-torsoWidth / 2, -torsoHeight + 10);
+        this.body.quadraticCurveTo(-torsoWidth / 2 - 2, -torsoHeight, -torsoWidth / 2 + 8, -torsoHeight);
+        this.body.lineTo(torsoWidth / 2 - 8, -torsoHeight);
+        this.body.quadraticCurveTo(torsoWidth / 2 + 2, -torsoHeight, torsoWidth / 2, -torsoHeight + 10);
+        this.body.lineTo(torsoWidth / 2 - waistNarrow, 0);
+        this.body.closePath();
+        this.body.fill();
+
+        // Shirt shading (right side darker)
+        this.body.fillStyle(0x000000, 0.15);
+        this.body.beginPath();
+        this.body.moveTo(torsoWidth / 4, -torsoHeight + 10);
+        this.body.lineTo(torsoWidth / 2 - 8, -torsoHeight);
+        this.body.quadraticCurveTo(torsoWidth / 2 + 2, -torsoHeight, torsoWidth / 2, -torsoHeight + 10);
+        this.body.lineTo(torsoWidth / 2 - waistNarrow, 0);
+        this.body.lineTo(torsoWidth / 4, 0);
+        this.body.closePath();
+        this.body.fill();
+
+        // Shirt highlight (left side)
+        this.body.fillStyle(0xffffff, 0.12);
+        this.body.fillRoundedRect(-torsoWidth / 2 + 3, -torsoHeight + 5, 8, 20, 3);
+
+        // Collar / neckline
+        this.body.fillStyle(cfg.skinTone, 1);
+        this.body.fillEllipse(0, -torsoHeight + 2, 18, 8);
+
+        // Neck shadow
+        this.body.fillStyle(cfg.skinShadow, 0.5);
+        this.body.fillEllipse(0, -torsoHeight + 4, 14, 5);
+
+        // Belt
+        this.body.fillStyle(0x222222, 1);
+        this.body.fillRect(-torsoWidth / 2 + waistNarrow + 2, -3, torsoWidth - waistNarrow * 2 - 4, 5);
+
+        // Belt buckle
+        this.body.fillStyle(cfg.accentColor, 0.8);
+        this.body.fillRect(-4, -3, 8, 5);
+
+        // Muscle definition for muscular type
+        if (isMuscular) {
+            this.body.lineStyle(1, 0x000000, 0.15);
+            // Pec line
+            this.body.lineBetween(0, -torsoHeight + 15, 0, -torsoHeight + 30);
+            // Abs
+            this.body.lineBetween(-8, -20, 8, -20);
+            this.body.lineBetween(-6, -12, 6, -12);
+        }
+    }
+
+    drawArm(graphics, xOffset, isFemale, isSlim, isMuscular) {
+        const cfg = this.config;
+        const armWidth = isMuscular ? 14 : (isSlim ? 9 : 11);
+        const isLeft = xOffset < 0;
+
+        // Shoulder - visible skin
+        graphics.fillStyle(cfg.skinTone, 1);
+        graphics.fillCircle(xOffset + armWidth / 2, -42, armWidth / 2 + 2);
+
+        // Upper arm (bicep) - skin
+        graphics.fillStyle(cfg.skinTone, 1);
+        graphics.fillRoundedRect(xOffset, -44, armWidth, 22, 4);
+
+        // Bicep shading
+        graphics.fillStyle(cfg.skinShadow, 0.4);
+        if (isLeft) {
+            graphics.fillRoundedRect(xOffset, -44, 4, 20, 2);
+        } else {
+            graphics.fillRoundedRect(xOffset + armWidth - 4, -44, 4, 20, 2);
+        }
+
+        // Bicep highlight
+        graphics.fillStyle(cfg.skinHighlight, 0.3);
+        if (isLeft) {
+            graphics.fillRoundedRect(xOffset + armWidth - 4, -42, 3, 15, 2);
+        } else {
+            graphics.fillRoundedRect(xOffset + 1, -42, 3, 15, 2);
+        }
+
+        // Muscle bulge for muscular type
+        if (isMuscular) {
+            graphics.fillStyle(cfg.skinHighlight, 0.2);
+            graphics.fillEllipse(xOffset + armWidth / 2, -35, armWidth - 2, 10);
+        }
+
+        // Forearm - skin
+        graphics.fillStyle(cfg.skinTone, 1);
+        graphics.fillRoundedRect(xOffset + 1, -24, armWidth - 2, 18, 3);
+
+        // Forearm shading
+        graphics.fillStyle(cfg.skinShadow, 0.3);
+        graphics.fillRoundedRect(xOffset + armWidth - 4, -22, 3, 14, 2);
+
+        // Glove / hand
+        graphics.fillStyle(cfg.gloveColor, 1);
+        graphics.fillRoundedRect(xOffset, -8, armWidth, 14, 4);
+
+        // Glove highlight
+        graphics.fillStyle(0xffffff, 0.15);
+        graphics.fillRoundedRect(xOffset + 1, -6, 4, 8, 2);
+
+        // Glove detail - knuckle line
+        graphics.lineStyle(1, 0x000000, 0.2);
+        graphics.lineBetween(xOffset + 2, 0, xOffset + armWidth - 2, 0);
+
+        // Fist definition
+        graphics.fillStyle(cfg.gloveColor, 1);
+        graphics.fillCircle(xOffset + armWidth / 2, 4, armWidth / 2 - 1);
+    }
+
+    drawHead(isFemale) {
+        const cfg = this.config;
+        const headWidth = isFemale ? 17 : 18;
+        const headHeight = isFemale ? 19 : 20;
+        const jawWidth = isFemale ? 14 : 16;
+
+        // Head base - skin tone
+        this.head.fillStyle(cfg.skinTone, 1);
+        this.head.fillEllipse(0, -65, headWidth, headHeight);
+
+        // Jaw / chin area
+        this.head.fillStyle(cfg.skinTone, 1);
+        this.head.beginPath();
+        this.head.moveTo(-jawWidth / 2, -58);
+        this.head.lineTo(-jawWidth / 2 + 2, -50);
+        this.head.quadraticCurveTo(0, -46, jawWidth / 2 - 2, -50);
+        this.head.lineTo(jawWidth / 2, -58);
+        this.head.closePath();
+        this.head.fill();
+
+        // Face shadow (right side)
+        this.head.fillStyle(cfg.skinShadow, 0.3);
+        this.head.fillEllipse(6, -63, 8, 14);
+
+        // Face highlight (left side)
+        this.head.fillStyle(cfg.skinHighlight, 0.25);
+        this.head.fillEllipse(-6, -70, 7, 8);
+
+        // Cheek blush for female
+        if (isFemale) {
+            this.head.fillStyle(0xff8888, 0.15);
+            this.head.fillCircle(-9, -60, 4);
+            this.head.fillCircle(9, -60, 4);
+        }
+
+        // Eyes
+        const eyeY = -65;
+        const eyeSpacing = 6;
+
+        // Eye whites
+        this.head.fillStyle(0xffffff, 1);
+        this.head.fillEllipse(-eyeSpacing, eyeY, 5, 4);
+        this.head.fillEllipse(eyeSpacing, eyeY, 5, 4);
+
+        // Iris
+        this.head.fillStyle(cfg.eyeColor, 1);
+        const lookDir = this.isPlayer1 ? 1 : -1;
+        this.head.fillCircle(-eyeSpacing + lookDir, eyeY, 3);
+        this.head.fillCircle(eyeSpacing + lookDir, eyeY, 3);
+
+        // Pupils
+        this.head.fillStyle(0x000000, 1);
+        this.head.fillCircle(-eyeSpacing + lookDir, eyeY, 1.5);
+        this.head.fillCircle(eyeSpacing + lookDir, eyeY, 1.5);
+
+        // Eye shine
+        this.head.fillStyle(0xffffff, 0.7);
+        this.head.fillCircle(-eyeSpacing + lookDir - 1, eyeY - 1, 1);
+        this.head.fillCircle(eyeSpacing + lookDir - 1, eyeY - 1, 1);
+
+        // Eyebrows
+        this.head.fillStyle(cfg.hairColor, 0.8);
+        const browAngle = 0.1;
+        this.head.fillRect(-eyeSpacing - 4, eyeY - 6, 8, 2);
+        this.head.fillRect(eyeSpacing - 4, eyeY - 6, 8, 2);
+
+        // Nose
+        this.head.fillStyle(cfg.skinShadow, 0.4);
+        this.head.fillTriangle(0, -62, -2, -56, 2, -56);
+        // Nose highlight
+        this.head.fillStyle(cfg.skinHighlight, 0.3);
+        this.head.fillCircle(-1, -59, 1);
+
+        // Mouth
+        this.head.fillStyle(0x994444, 0.8);
+        if (isFemale) {
+            // Fuller lips for female
+            this.head.fillEllipse(0, -52, 5, 2);
+            this.head.fillStyle(0xcc6666, 0.5);
+            this.head.fillEllipse(0, -51, 4, 1.5);
+        } else {
+            // Simple mouth line for male
+            this.head.lineStyle(2, 0x663333, 0.6);
+            this.head.lineBetween(-4, -52, 4, -52);
+        }
+
+        // Ear (visible side)
+        this.head.fillStyle(cfg.skinTone, 1);
+        const earX = this.isPlayer1 ? -headWidth + 2 : headWidth - 2;
+        this.head.fillEllipse(earX, -62, 4, 6);
+        this.head.fillStyle(cfg.skinShadow, 0.4);
+        this.head.fillEllipse(earX, -62, 2, 4);
+    }
+
+    drawHair() {
+        const cfg = this.config;
+        const hairColor = cfg.hairColor;
+        const hairHighlight = Phaser.Display.Color.ValueToColor(hairColor);
+        const highlightColor = Phaser.Display.Color.GetColor(
+            Math.min(255, hairHighlight.r + 60),
+            Math.min(255, hairHighlight.g + 60),
+            Math.min(255, hairHighlight.b + 60)
+        );
+
+        switch (cfg.hairStyle) {
+            case 'short_spiky':
+                // Base hair
+                this.hair.fillStyle(hairColor, 1);
+                this.hair.fillEllipse(0, -78, 18, 10);
+                // Spikes
+                for (let i = -12; i <= 12; i += 6) {
+                    this.hair.fillTriangle(i, -82, i - 3, -75, i + 3, -75);
+                }
+                // Highlight
+                this.hair.fillStyle(highlightColor, 0.3);
+                this.hair.fillEllipse(-4, -80, 6, 4);
+                break;
+
+            case 'long_flowing':
+                // Main hair volume
+                this.hair.fillStyle(hairColor, 1);
+                this.hair.fillEllipse(0, -78, 22, 12);
+                // Side hair
+                this.hair.fillRoundedRect(-20, -75, 10, 35, 5);
+                this.hair.fillRoundedRect(10, -75, 10, 35, 5);
+                // Back hair
+                this.hair.fillRoundedRect(-15, -70, 30, 25, 8);
+                // Hair highlight
+                this.hair.fillStyle(highlightColor, 0.25);
+                this.hair.fillEllipse(-6, -82, 8, 5);
+                this.hair.fillRoundedRect(-18, -70, 5, 20, 3);
+                break;
+
+            case 'hooded':
+                // Hood
+                this.hair.fillStyle(cfg.outfitTop, 1);
+                this.hair.beginPath();
+                this.hair.moveTo(-22, -50);
+                this.hair.quadraticCurveTo(-25, -80, 0, -88);
+                this.hair.quadraticCurveTo(25, -80, 22, -50);
+                this.hair.lineTo(18, -52);
+                this.hair.quadraticCurveTo(0, -45, -18, -52);
+                this.hair.closePath();
+                this.hair.fill();
+                // Hood shadow
+                this.hair.fillStyle(0x000000, 0.3);
+                this.hair.fillEllipse(0, -70, 15, 8);
+                // Hood edge highlight
+                this.hair.lineStyle(2, highlightColor, 0.2);
+                this.hair.beginPath();
+                this.hair.arc(0, -55, 20, -2.8, -0.34);
+                this.hair.stroke();
+                break;
+
+            case 'bald':
+                // Just show scalp with slight shine
+                this.hair.fillStyle(cfg.skinHighlight, 0.3);
+                this.hair.fillEllipse(-3, -80, 8, 5);
+                break;
+
+            case 'ponytail':
+                // Base hair
+                this.hair.fillStyle(hairColor, 1);
+                this.hair.fillEllipse(0, -78, 18, 10);
+                // Ponytail
+                this.hair.fillRoundedRect(-5, -80, 10, 8, 4);
+                this.hair.fillRoundedRect(-4, -72, 8, 35, 4);
+                // Hair band
+                this.hair.fillStyle(cfg.accentColor, 0.8);
+                this.hair.fillRect(-5, -72, 10, 4);
+                // Highlight
+                this.hair.fillStyle(highlightColor, 0.25);
+                this.hair.fillEllipse(-5, -80, 5, 4);
+                break;
+
+            case 'long_wavy':
+                // Voluminous wavy hair
+                this.hair.fillStyle(hairColor, 1);
+                this.hair.fillEllipse(0, -78, 24, 14);
+                // Waves on sides
+                for (let y = -70; y < -35; y += 8) {
+                    const wave = Math.sin((y + 70) * 0.2) * 3;
+                    this.hair.fillEllipse(-18 + wave, y, 8, 6);
+                    this.hair.fillEllipse(18 - wave, y, 8, 6);
+                }
+                // Back volume
+                this.hair.fillRoundedRect(-18, -70, 36, 30, 10);
+                // Highlights
+                this.hair.fillStyle(highlightColor, 0.2);
+                this.hair.fillEllipse(-8, -82, 10, 6);
+                this.hair.fillRoundedRect(-16, -65, 6, 20, 3);
+                break;
+        }
     }
 
     // Movement
