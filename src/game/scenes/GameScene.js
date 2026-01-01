@@ -34,6 +34,8 @@ export default class GameScene extends Phaser.Scene {
         this.isPaused = false;
         this.isComplete = false;
         this.playerHealth = 3;
+        this.timeLeft = 90; // 90 second time limit
+        this.enemies = [];
     }
 
     create() {
@@ -49,9 +51,11 @@ export default class GameScene extends Phaser.Scene {
         this.createPlayer();
         this.createStars();
         this.createObstacles();
+        this.createEnemies();
         this.createParticles();
         this.createHUD(width, height);
         this.setupControls(width, height);
+        this.startTimer();
 
         // Setup camera
         this.physics.world.setBounds(0, 0, 2560, 1440);
@@ -61,6 +65,7 @@ export default class GameScene extends Phaser.Scene {
         // Collisions
         this.physics.add.overlap(this.player, this.stars, this.collectStar, null, this);
         this.physics.add.overlap(this.player, this.obstacles, this.hitObstacle, null, this);
+        this.physics.add.overlap(this.player, this.enemyGroup, this.hitEnemy, null, this);
 
         console.log(`Started level ${this.levelKey}`);
     }
@@ -391,6 +396,228 @@ export default class GameScene extends Phaser.Scene {
         });
 
         this.obstacles.add(asteroid);
+    }
+
+    createEnemies() {
+        this.enemyGroup = this.physics.add.group();
+
+        // Create patrol drones that move in patterns
+        for (let i = 0; i < 4; i++) {
+            const x = Phaser.Math.Between(600, 2200);
+            const y = Phaser.Math.Between(200, 1200);
+            this.createPatrolDrone(x, y);
+        }
+
+        // Create chaser enemy that hunts the player
+        this.createChaserEnemy(1500, 700);
+    }
+
+    createPatrolDrone(x, y) {
+        const drone = this.add.container(x, y);
+
+        // Drone body
+        const body = this.add.graphics();
+        body.fillStyle(0xff3333, 1);
+        body.fillCircle(0, 0, 18);
+        body.fillStyle(0x880000, 1);
+        body.fillCircle(0, 0, 10);
+        // Evil eye
+        body.fillStyle(0xffff00, 1);
+        body.fillCircle(0, 0, 5);
+        drone.add(body);
+
+        // Danger glow
+        const glow = this.add.circle(0, 0, 25, 0xff0000, 0.3);
+        drone.add(glow);
+        drone.sendToBack(glow);
+
+        this.physics.add.existing(drone);
+        drone.body.setCircle(20);
+        drone.body.setOffset(-20, -20);
+        drone.setDepth(DEPTH.ENEMIES || DEPTH.PLAYER - 1);
+
+        // Patrol movement pattern
+        const patrolDist = Phaser.Math.Between(100, 200);
+        const patrolDuration = Phaser.Math.Between(2000, 4000);
+        const horizontal = Phaser.Math.Between(0, 1) === 0;
+
+        this.tweens.add({
+            targets: drone,
+            x: horizontal ? x + patrolDist : x,
+            y: horizontal ? y : y + patrolDist,
+            duration: patrolDuration,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut'
+        });
+
+        // Pulsing glow
+        this.tweens.add({
+            targets: glow,
+            alpha: { from: 0.3, to: 0.6 },
+            scale: { from: 1, to: 1.3 },
+            duration: 500,
+            yoyo: true,
+            repeat: -1
+        });
+
+        this.enemyGroup.add(drone);
+        this.enemies.push(drone);
+    }
+
+    createChaserEnemy(x, y) {
+        const chaser = this.add.container(x, y);
+
+        // Chaser body - more menacing
+        const body = this.add.graphics();
+        // Spiky shape
+        body.fillStyle(0xff0066, 1);
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2;
+            const nextAngle = ((i + 1) / 6) * Math.PI * 2;
+            body.fillTriangle(
+                0, 0,
+                Math.cos(angle) * 25,
+                Math.sin(angle) * 25,
+                Math.cos((angle + nextAngle) / 2) * 12,
+                Math.sin((angle + nextAngle) / 2) * 12
+            );
+        }
+        // Core
+        body.fillStyle(0xff00ff, 1);
+        body.fillCircle(0, 0, 10);
+        body.fillStyle(0xffffff, 1);
+        body.fillCircle(0, 0, 4);
+        chaser.add(body);
+
+        // Warning indicator
+        const warning = this.add.text(0, -35, '!', {
+            fontFamily: 'Arial Black',
+            fontSize: '24px',
+            color: '#ff0000'
+        }).setOrigin(0.5);
+        chaser.add(warning);
+
+        this.tweens.add({
+            targets: warning,
+            alpha: { from: 1, to: 0.3 },
+            scale: { from: 1, to: 1.2 },
+            duration: 300,
+            yoyo: true,
+            repeat: -1
+        });
+
+        this.physics.add.existing(chaser);
+        chaser.body.setCircle(25);
+        chaser.body.setOffset(-25, -25);
+        chaser.body.setMaxVelocity(150);
+        chaser.setDepth(DEPTH.ENEMIES || DEPTH.PLAYER - 1);
+
+        chaser.isChaser = true;
+        chaser.speed = 120;
+
+        this.enemyGroup.add(chaser);
+        this.enemies.push(chaser);
+        this.chaser = chaser;
+    }
+
+    startTimer() {
+        // Timer display
+        const { width } = this.cameras.main;
+        this.timerText = this.add.text(width / 2, 25, `Time: ${this.timeLeft}`, {
+            fontFamily: 'Arial Black',
+            fontSize: '28px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 4
+        })
+            .setOrigin(0.5, 0)
+            .setScrollFactor(0)
+            .setDepth(DEPTH.UI);
+
+        // Countdown timer
+        this.timerEvent = this.time.addEvent({
+            delay: 1000,
+            callback: () => {
+                if (this.isComplete) return;
+
+                this.timeLeft--;
+                this.timerText.setText(`Time: ${this.timeLeft}`);
+
+                // Warning when low on time
+                if (this.timeLeft <= 10) {
+                    this.timerText.setColor('#ff0000');
+                    this.tweens.add({
+                        targets: this.timerText,
+                        scale: { from: 1.2, to: 1 },
+                        duration: 200
+                    });
+                } else if (this.timeLeft <= 30) {
+                    this.timerText.setColor('#ffff00');
+                }
+
+                // Time's up!
+                if (this.timeLeft <= 0) {
+                    this.timeUp();
+                }
+            },
+            loop: true
+        });
+    }
+
+    timeUp() {
+        if (this.isComplete) return;
+        this.isComplete = true;
+
+        this.player.body.setVelocity(0);
+        this.playSound('hit');
+
+        const { width, height } = this.cameras.main;
+
+        // Time up screen
+        this.add.rectangle(
+            this.cameras.main.scrollX + width/2,
+            this.cameras.main.scrollY + height/2,
+            width, height, 0x000000, 0.8
+        ).setDepth(DEPTH.OVERLAY);
+
+        this.add.text(
+            this.cameras.main.scrollX + width/2,
+            this.cameras.main.scrollY + height/2 - 60,
+            '⏰ TIME UP! ⏰',
+            { fontFamily: 'Arial Black', fontSize: '48px', color: '#ff6600' }
+        ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1);
+
+        const session = this.registry.get('session');
+        this.add.text(
+            this.cameras.main.scrollX + width/2,
+            this.cameras.main.scrollY + height/2,
+            `Score: ${session.score}`,
+            { fontFamily: 'Arial', fontSize: '24px', color: '#ffffff' }
+        ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1);
+
+        this.add.text(
+            this.cameras.main.scrollX + width/2,
+            this.cameras.main.scrollY + height/2 + 60,
+            '↻ TRY AGAIN',
+            { fontFamily: 'Arial Black', fontSize: '28px', color: '#00ffff' }
+        ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1)
+            .setInteractive({ useHandCursor: true })
+            .on('pointerdown', () => this.scene.restart());
+
+        this.add.text(
+            this.cameras.main.scrollX + width/2,
+            this.cameras.main.scrollY + height/2 + 110,
+            'Back to Menu',
+            { fontFamily: 'Arial', fontSize: '20px', color: '#888888' }
+        ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1)
+            .setInteractive({ useHandCursor: true })
+            .on('pointerdown', () => this.scene.start('MenuScene'));
+    }
+
+    hitEnemy(player, enemy) {
+        // Same as hitting obstacle
+        this.hitObstacle(player, enemy);
     }
 
     createParticles() {
@@ -787,8 +1014,30 @@ export default class GameScene extends Phaser.Scene {
         });
     }
 
+    updateEnemies() {
+        // Update chaser to follow player
+        if (this.chaser && this.chaser.body) {
+            const angle = Phaser.Math.Angle.Between(
+                this.chaser.x, this.chaser.y,
+                this.player.x, this.player.y
+            );
+
+            // Move towards player
+            this.chaser.body.setVelocity(
+                Math.cos(angle) * this.chaser.speed,
+                Math.sin(angle) * this.chaser.speed
+            );
+
+            // Rotate to face player
+            this.chaser.rotation = angle + Math.PI / 2;
+        }
+    }
+
     update(time, delta) {
         if (this.isPaused || this.isComplete) return;
+
+        // Update chaser enemy AI
+        this.updateEnemies();
 
         // Input
         let vx = 0, vy = 0;
