@@ -22,10 +22,8 @@ export default class SettingsScene extends Phaser.Scene {
         // Fade in
         this.cameras.main.fadeIn(500);
 
-        // Background
-        this.add.image(centerX, height / 2, 'bg-space-1')
-            .setDisplaySize(width, height)
-            .setDepth(DEPTH.BACKGROUND);
+        // Background (procedural)
+        this.createBackground(width, height);
 
         // Title
         this.add.text(centerX, 60, 'SETTINGS', {
@@ -37,7 +35,7 @@ export default class SettingsScene extends Phaser.Scene {
         }).setOrigin(0.5).setDepth(DEPTH.UI);
 
         // Get current settings
-        this.settings = this.registry.get('settings');
+        this.settings = this.registry.get('settings') || { musicVolume: 0.7, sfxVolume: 0.7, showHints: true, vibration: true };
 
         // Create settings panels
         this.createSoundSettings(centerX, 150);
@@ -45,6 +43,20 @@ export default class SettingsScene extends Phaser.Scene {
 
         // Back button
         this.createBackButton();
+    }
+
+    createBackground(width, height) {
+        const bg = this.add.graphics();
+        bg.fillGradientStyle(0x0a0a2e, 0x0a0a2e, 0x1a1a4e, 0x1a1a4e, 1);
+        bg.fillRect(0, 0, width, height);
+        bg.setDepth(DEPTH.BACKGROUND);
+
+        for (let i = 0; i < 80; i++) {
+            const x = Math.random() * width;
+            const y = Math.random() * height;
+            const star = this.add.circle(x, y, Math.random() * 1.5 + 0.5, 0xffffff, Math.random() * 0.6 + 0.2);
+            star.setDepth(DEPTH.BACKGROUND + 1);
+        }
     }
 
     createSoundSettings(x, startY) {
@@ -182,7 +194,6 @@ export default class SettingsScene extends Phaser.Scene {
             bg.setFillStyle(newValue ? 0x00ff88 : 0x666666);
             handle.x = newValue ? x + width / 4 : x - width / 4;
             text.setText(newValue ? 'ON' : 'OFF');
-            this.sound.play('sfx-button', { volume: 0.5 });
             onChange(newValue);
         });
 
@@ -190,12 +201,15 @@ export default class SettingsScene extends Phaser.Scene {
     }
 
     createBackButton() {
-        const backBtn = this.add.image(60, 50, 'btn-back')
-            .setScale(0.5)
-            .setDepth(DEPTH.UI)
+        this.add.text(20, 20, '← Back', {
+            fontFamily: 'Arial',
+            fontSize: '20px',
+            color: '#888888'
+        }).setDepth(DEPTH.UI)
             .setInteractive({ useHandCursor: true })
+            .on('pointerover', function() { this.setColor('#ffffff'); })
+            .on('pointerout', function() { this.setColor('#888888'); })
             .on('pointerdown', () => {
-                this.sound.play('sfx-button', { volume: 0.5 });
                 this.goBack();
             });
     }

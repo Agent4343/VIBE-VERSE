@@ -83,14 +83,28 @@ export default class LevelScene extends Phaser.Scene {
      * Create scrolling background
      */
     createBackground(width, height) {
-        this.add.image(width / 2, height / 2, 'bg-space-1')
-            .setDisplaySize(width, height)
-            .setDepth(DEPTH.BACKGROUND);
+        // Gradient background (no image assets needed)
+        const bg = this.add.graphics();
+        bg.fillGradientStyle(0x0a0a2e, 0x0a0a2e, 0x1a1a4e, 0x1a1a4e, 1);
+        bg.fillRect(0, 0, width, height);
+        bg.setDepth(DEPTH.BACKGROUND);
 
-        // Animated stars
-        this.stars = this.add.tileSprite(0, 0, width, height, 'parallax-stars-1')
-            .setOrigin(0)
-            .setDepth(DEPTH.BACKGROUND + 1);
+        // Animated stars (procedural)
+        for (let i = 0; i < 100; i++) {
+            const x = Math.random() * width;
+            const y = Math.random() * height;
+            const size = Math.random() * 2 + 0.5;
+            const star = this.add.circle(x, y, size, 0xffffff, Math.random() * 0.8 + 0.2);
+            star.setDepth(DEPTH.BACKGROUND + 1);
+
+            this.tweens.add({
+                targets: star,
+                alpha: { from: star.alpha, to: 0.1 },
+                duration: Math.random() * 2000 + 1000,
+                yoyo: true,
+                repeat: -1
+            });
+        }
     }
 
     /**
@@ -211,24 +225,20 @@ export default class LevelScene extends Phaser.Scene {
         // Container for level button
         const container = this.add.container(x, y);
 
-        // Background based on state
-        let bgTexture = 'level-locked';
-        if (isUnlocked) {
-            // Check if completed (has any score)
-            bgTexture = 'level-unlocked'; // Could check for completion
-        }
-
-        const bg = this.add.image(0, 0, bgTexture)
-            .setDisplaySize(120, 120);
+        // Background (procedural, no image asset)
+        const bg = this.add.rectangle(0, 0, 100, 100, canAccess ? 0x1a3a5a : 0x1a1a2e, 0.9);
+        bg.setStrokeStyle(3, canAccess ? 0x00ffff : 0x333333);
+        container.add(bg);
 
         // Level number
-        const levelText = this.add.text(0, -10, level.toString(), {
+        const levelText = this.add.text(0, canAccess ? -10 : 0, level.toString(), {
             fontFamily: 'Arial Black',
             fontSize: '36px',
             color: canAccess ? '#ffffff' : '#666666',
             stroke: '#000000',
             strokeThickness: 3
         }).setOrigin(0.5);
+        container.add(levelText);
 
         // Lock icon for locked levels
         if (!canAccess) {
@@ -238,25 +248,24 @@ export default class LevelScene extends Phaser.Scene {
             container.add(lockIcon);
         } else {
             // Star indicators for unlocked levels
-            const starContainer = this.add.container(0, 35);
+            const starContainer = this.add.container(0, 30);
             for (let s = 0; s < 3; s++) {
                 const star = this.add.text(-20 + (s * 20), 0, '★', {
                     fontSize: '18px',
-                    color: '#ffff00' // Could be based on completion
+                    color: '#ffff00'
                 }).setOrigin(0.5);
                 starContainer.add(star);
             }
             container.add(starContainer);
         }
 
-        container.add([bg, levelText]);
-
         // Interactivity
         if (canAccess) {
-            container.setSize(120, 120);
+            container.setSize(100, 100);
             container.setInteractive({ useHandCursor: true });
 
             container.on('pointerover', () => {
+                bg.setStrokeStyle(3, 0x00ff00);
                 this.tweens.add({
                     targets: container,
                     scale: 1.1,
@@ -265,6 +274,7 @@ export default class LevelScene extends Phaser.Scene {
             });
 
             container.on('pointerout', () => {
+                bg.setStrokeStyle(3, 0x00ffff);
                 this.tweens.add({
                     targets: container,
                     scale: 1,
@@ -273,7 +283,6 @@ export default class LevelScene extends Phaser.Scene {
             });
 
             container.on('pointerdown', () => {
-                this.sound.play('sfx-button', { volume: 0.5 });
                 this.selectLevel(chapter, level);
             });
         }
@@ -298,35 +307,33 @@ export default class LevelScene extends Phaser.Scene {
      * Create back button
      */
     createBackButton() {
-        const backBtn = this.add.image(60, 50, 'btn-back')
-            .setScale(0.5)
-            .setDepth(DEPTH.UI)
+        this.add.text(20, 20, '← Back', {
+            fontFamily: 'Arial',
+            fontSize: '20px',
+            color: '#888888'
+        }).setDepth(DEPTH.UI)
             .setInteractive({ useHandCursor: true })
+            .on('pointerover', function() { this.setColor('#ffffff'); })
+            .on('pointerout', function() { this.setColor('#888888'); })
             .on('pointerdown', () => {
-                this.sound.play('sfx-button', { volume: 0.5 });
                 this.goBack();
-            })
-            .on('pointerover', () => backBtn.setScale(0.55))
-            .on('pointerout', () => backBtn.setScale(0.5));
+            });
     }
 
     /**
      * Create star counter in corner
      */
     createStarCounter(width) {
-        const progress = this.registry.get('playerProgress');
+        const progress = this.registry.get('playerProgress') || { totalStars: 0 };
 
-        this.add.image(width - 100, 50, 'hud-star-counter')
-            .setScale(0.6)
-            .setDepth(DEPTH.UI);
-
-        this.add.text(width - 60, 50, progress.totalStars.toString(), {
+        // Star counter using text (no image asset needed)
+        this.add.text(width - 20, 20, `⭐ ${progress.totalStars}`, {
             fontFamily: 'Arial Black',
             fontSize: '24px',
             color: '#ffff00',
             stroke: '#000000',
             strokeThickness: 3
-        }).setOrigin(0.5).setDepth(DEPTH.UI);
+        }).setOrigin(1, 0).setDepth(DEPTH.UI);
     }
 
     /**
@@ -363,7 +370,6 @@ export default class LevelScene extends Phaser.Scene {
         if (this.currentChapter > 1) {
             this.currentChapter--;
             this.displayChapter(this.currentChapter);
-            this.sound.play('sfx-button', { volume: 0.3 });
         }
     }
 
@@ -374,7 +380,6 @@ export default class LevelScene extends Phaser.Scene {
         if (this.currentChapter < this.totalChapters) {
             this.currentChapter++;
             this.displayChapter(this.currentChapter);
-            this.sound.play('sfx-button', { volume: 0.3 });
         }
     }
 
@@ -385,7 +390,6 @@ export default class LevelScene extends Phaser.Scene {
         if (chapterNum !== this.currentChapter) {
             this.currentChapter = chapterNum;
             this.displayChapter(this.currentChapter);
-            this.sound.play('sfx-button', { volume: 0.3 });
         }
     }
 
@@ -413,10 +417,4 @@ export default class LevelScene extends Phaser.Scene {
         });
     }
 
-    /**
-     * Update loop - animate background
-     */
-    update() {
-        this.stars.tilePositionX += 0.2;
-    }
 }

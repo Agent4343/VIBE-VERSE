@@ -219,6 +219,22 @@ export default class EndlessScene extends Phaser.Scene {
             fontSize: '14px',
             color: '#ff00ff'
         }).setOrigin(0.5, 0).setDepth(DEPTH.UI);
+
+        // Back/Menu button (top-left, below health)
+        this.add.text(20, 85, '← Menu', {
+            fontFamily: 'Arial',
+            fontSize: '16px',
+            color: '#666666'
+        }).setDepth(DEPTH.UI)
+            .setInteractive({ useHandCursor: true })
+            .on('pointerover', function() { this.setColor('#ffffff'); })
+            .on('pointerout', function() { this.setColor('#666666'); })
+            .on('pointerdown', () => {
+                this.cameras.main.fadeOut(300);
+                this.cameras.main.once('camerafadeoutcomplete', () => {
+                    this.scene.start('MenuScene');
+                });
+            });
     }
 
     updateHUD() {
