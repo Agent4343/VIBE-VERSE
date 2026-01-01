@@ -148,10 +148,14 @@ app.get('/health', (req, res) => {
 });
 
 // ========================================
-// SPA Fallback
+// SPA Fallback (only for non-file routes)
 // ========================================
 
-app.get('*', (req, res) => {
+app.get('*', (req, res, next) => {
+    // Don't fallback for files with extensions (assets, etc.)
+    if (path.extname(req.path)) {
+        return res.status(404).json({ error: 'File not found' });
+    }
     res.sendFile(path.join(__dirname, '../../dist/index.html'));
 });
 

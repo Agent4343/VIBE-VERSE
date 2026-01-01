@@ -2,9 +2,9 @@
  * BootScene - Initial Bootstrap Scene
  *
  * This is the first scene that loads. It handles:
- * - Minimal asset loading for the preloader UI
  * - System detection and capability checks
  * - Initialization of game registries
+ * - Creates loading graphics programmatically (no external files needed)
  *
  * Keep this scene lightweight for fast initial load.
  */
@@ -74,21 +74,44 @@ export default class BootScene extends Phaser.Scene {
     }
 
     /**
-     * Load minimal assets needed for the preload screen
+     * Create placeholder graphics programmatically
      */
     preload() {
-        // Loading bar background/border (simple graphics, no external files)
-        // We'll create these programmatically in PreloadScene
+        // Create placeholder textures programmatically (no external files needed)
+        this.createPlaceholderTextures();
+    }
 
-        // Load only the essential preloader assets
-        this.load.image('logo', 'assets/images/ui/logo.png');
-        this.load.image('loading-bg', 'assets/images/ui/loading-background.png');
+    /**
+     * Create simple placeholder textures for loading screen
+     */
+    createPlaceholderTextures() {
+        // Create a simple logo texture (gradient rectangle)
+        const logoGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+        logoGraphics.fillGradientStyle(0x00ffff, 0x00ffff, 0x0066ff, 0x0066ff, 1);
+        logoGraphics.fillRect(0, 0, 300, 80);
+        logoGraphics.generateTexture('logo', 300, 80);
+        logoGraphics.destroy();
 
-        // Load a minimal spritesheet for loading animation
-        this.load.spritesheet('loading-spinner', 'assets/images/ui/spinner.png', {
-            frameWidth: 64,
-            frameHeight: 64
-        });
+        // Create loading background texture
+        const bgGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+        bgGraphics.fillGradientStyle(0x0a0a2e, 0x0a0a2e, 0x2d1b4e, 0x2d1b4e, 1);
+        bgGraphics.fillRect(0, 0, 1280, 720);
+        bgGraphics.generateTexture('loading-bg', 1280, 720);
+        bgGraphics.destroy();
+
+        // Create spinner texture (simple circle frames for animation)
+        const spinnerGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+        // Create 8 frames for spinner animation
+        for (let i = 0; i < 8; i++) {
+            const x = i * 64 + 32;
+            spinnerGraphics.lineStyle(4, 0x00ffff, 1);
+            spinnerGraphics.beginPath();
+            const startAngle = (i * Math.PI) / 4;
+            spinnerGraphics.arc(x, 32, 24, startAngle, startAngle + Math.PI * 1.5);
+            spinnerGraphics.strokePath();
+        }
+        spinnerGraphics.generateTexture('loading-spinner', 512, 64);
+        spinnerGraphics.destroy();
     }
 
     /**
@@ -106,13 +129,18 @@ export default class BootScene extends Phaser.Scene {
             repeat: -1
         });
 
-        // Log system info in development
-        if (process.env.NODE_ENV === 'development') {
-            console.log('System Info:', {
-                webGL: this.hasWebGL,
-                touch: this.isTouchDevice,
-                resolution: `${this.scale.width}x${this.scale.height}`
-            });
+        // Log system info
+        console.log('System Info:', {
+            webGL: this.hasWebGL,
+            touch: this.isTouchDevice,
+            resolution: `${this.scale.width}x${this.scale.height}`
+        });
+
+        // Hide the HTML loading screen
+        const htmlLoader = document.getElementById('initial-loader');
+        if (htmlLoader) {
+            htmlLoader.classList.add('hidden');
+            setTimeout(() => htmlLoader.remove(), 500);
         }
 
         // Small delay for visual smoothness, then start PreloadScene

@@ -1,41 +1,24 @@
 /**
  * PreloadScene - Asset Loading Scene
  *
- * This scene handles loading all game assets with a visual progress bar.
- * It also initializes audio contexts and loads saved game data.
- *
- * Assets loaded here:
- * - Sprite sheets (player, enemies, collectibles)
- * - Background images
- * - UI elements
- * - Audio files (music and sound effects)
- * - Level data (JSON)
- * - Font files
+ * Simplified version that works without external assets.
+ * Creates placeholder graphics programmatically.
  */
 
 import Phaser from 'phaser';
-import { GAME_CONSTANTS } from '../config/gameConfig.js';
 import SaveManager from '../utils/SaveManager.js';
-import ApiClient from '../utils/ApiClient.js';
 
 export default class PreloadScene extends Phaser.Scene {
     constructor() {
         super({ key: 'PreloadScene' });
     }
 
-    /**
-     * Initialize loading state
-     */
     init() {
         this.loadProgress = 0;
         this.loadComplete = false;
     }
 
-    /**
-     * Create visual elements for the loading screen
-     */
     preload() {
-        // Get screen center
         const { width, height } = this.cameras.main;
         const centerX = width / 2;
         const centerY = height / 2;
@@ -61,344 +44,151 @@ export default class PreloadScene extends Phaser.Scene {
         this.progressBar = this.add.graphics();
 
         // Loading text
-        this.loadingText = this.add.text(centerX, centerY + 170, 'Loading...', {
+        this.loadingText = this.add.text(centerX, centerY + 170, 'Creating game world...', {
             fontFamily: 'Arial, sans-serif',
             fontSize: '24px',
             color: '#ffffff'
         }).setOrigin(0.5);
 
-        // Percentage text
-        this.percentText = this.add.text(centerX, centerY + 135, '0%', {
-            fontFamily: 'Arial, sans-serif',
-            fontSize: '18px',
-            color: '#00ffff'
-        }).setOrigin(0.5);
-
-        // Setup loading event listeners
-        this.setupLoadingEvents();
-
-        // Load all game assets
-        this.loadGameAssets();
+        // Create placeholder graphics for the game
+        this.createPlaceholderAssets();
     }
 
     /**
-     * Setup progress and complete event handlers
+     * Create all placeholder graphics programmatically
      */
-    setupLoadingEvents() {
-        // Update progress bar on file load
-        this.load.on('progress', (value) => {
-            this.loadProgress = value;
-            this.updateProgressBar(value);
-            this.percentText.setText(`${Math.round(value * 100)}%`);
-        });
+    createPlaceholderAssets() {
+        // Player ship
+        const playerG = this.make.graphics({ add: false });
+        playerG.fillStyle(0x00ffff, 1);
+        playerG.fillTriangle(32, 0, 0, 64, 64, 64);
+        playerG.fillStyle(0x0088ff, 1);
+        playerG.fillCircle(32, 40, 12);
+        playerG.generateTexture('player', 64, 64);
+        playerG.destroy();
 
-        // Update loading text with current file
-        this.load.on('fileprogress', (file) => {
-            this.loadingText.setText(`Loading: ${file.key}`);
-        });
+        // Stars
+        this.createStarTexture('star-bronze', 0xcd7f32, 32);
+        this.createStarTexture('star-silver', 0xc0c0c0, 32);
+        this.createStarTexture('star-gold', 0xffd700, 48);
 
-        // Handle load complete
-        this.load.on('complete', () => {
-            this.loadComplete = true;
-            this.loadingText.setText('Press anywhere to start!');
-            this.spinner.stop();
-            this.spinner.setVisible(false);
-        });
+        // Buttons
+        this.createButtonTexture('btn-play', 0x00ff88, 200, 60);
+        this.createButtonTexture('btn-settings', 0x8888ff, 60, 60);
+        this.createButtonTexture('btn-leaderboard', 0xffaa00, 60, 60);
+        this.createButtonTexture('btn-back', 0xff6666, 50, 50);
+        this.createButtonTexture('btn-pause', 0xffffff, 50, 50);
+
+        // Background
+        const bgG = this.make.graphics({ add: false });
+        bgG.fillGradientStyle(0x0a0a2e, 0x0a0a2e, 0x1a1a4e, 0x1a1a4e, 1);
+        bgG.fillRect(0, 0, 1280, 720);
+        // Add stars
+        for (let i = 0; i < 100; i++) {
+            bgG.fillStyle(0xffffff, Math.random() * 0.5 + 0.5);
+            bgG.fillCircle(Math.random() * 1280, Math.random() * 720, Math.random() * 2 + 1);
+        }
+        bgG.generateTexture('bg-space-1', 1280, 720);
+        bgG.destroy();
+
+        // Simulate loading progress
+        this.simulateLoading();
     }
 
-    /**
-     * Update the progress bar visual
-     * @param {number} progress - Progress value from 0 to 1
-     */
-    updateProgressBar(progress) {
+    createStarTexture(key, color, size) {
+        const g = this.make.graphics({ add: false });
+        g.fillStyle(color, 1);
+        // Draw a 5-pointed star
+        const cx = size / 2, cy = size / 2;
+        const outerR = size / 2 - 2;
+        const innerR = outerR * 0.4;
+        g.beginPath();
+        for (let i = 0; i < 5; i++) {
+            const outerAngle = (i * 72 - 90) * Math.PI / 180;
+            const innerAngle = ((i * 72) + 36 - 90) * Math.PI / 180;
+            if (i === 0) {
+                g.moveTo(cx + outerR * Math.cos(outerAngle), cy + outerR * Math.sin(outerAngle));
+            } else {
+                g.lineTo(cx + outerR * Math.cos(outerAngle), cy + outerR * Math.sin(outerAngle));
+            }
+            g.lineTo(cx + innerR * Math.cos(innerAngle), cy + innerR * Math.sin(innerAngle));
+        }
+        g.closePath();
+        g.fillPath();
+        g.generateTexture(key, size, size);
+        g.destroy();
+    }
+
+    createButtonTexture(key, color, width, height) {
+        const g = this.make.graphics({ add: false });
+        g.fillStyle(color, 1);
+        g.fillRoundedRect(0, 0, width, height, 10);
+        g.fillStyle(0xffffff, 0.3);
+        g.fillRoundedRect(4, 4, width - 8, height / 2 - 4, 6);
+        g.generateTexture(key, width, height);
+        g.destroy();
+    }
+
+    simulateLoading() {
         const { width, height } = this.cameras.main;
         const centerX = width / 2;
         const centerY = height / 2;
 
-        this.progressBar.clear();
+        let progress = 0;
+        const loadingItems = ['stars', 'planets', 'spaceship', 'sounds', 'levels'];
+        let itemIndex = 0;
 
-        // Gradient-like effect with multiple rectangles
-        const barWidth = 390 * progress;
-        const barHeight = 20;
-        const barX = centerX - 195;
-        const barY = centerY + 125;
+        this.time.addEvent({
+            delay: 200,
+            repeat: 10,
+            callback: () => {
+                progress += 0.1;
 
-        // Main bar (cyan gradient simulation)
-        this.progressBar.fillStyle(0x00ffff, 1);
-        this.progressBar.fillRoundedRect(barX, barY, barWidth, barHeight, 10);
+                // Update progress bar
+                this.progressBar.clear();
+                this.progressBar.fillStyle(0x00ffff, 1);
+                this.progressBar.fillRoundedRect(
+                    centerX - 195,
+                    centerY + 125,
+                    390 * progress,
+                    20,
+                    10
+                );
 
-        // Highlight on top
-        this.progressBar.fillStyle(0x80ffff, 0.5);
-        this.progressBar.fillRoundedRect(barX, barY, barWidth, barHeight / 2, { tl: 10, tr: 10 });
-    }
+                // Update loading text
+                if (itemIndex < loadingItems.length) {
+                    this.loadingText.setText(`Loading ${loadingItems[itemIndex]}...`);
+                    itemIndex++;
+                }
 
-    /**
-     * Load all game assets
-     * Organized by category for maintainability
-     */
-    loadGameAssets() {
-        // ========================================
-        // SPRITE SHEETS
-        // ========================================
-
-        // Player spaceship/character
-        this.load.spritesheet('player', 'assets/images/sprites/player.png', {
-            frameWidth: 64,
-            frameHeight: 64
-        });
-
-        // Player with animations
-        this.load.atlas(
-            'player-atlas',
-            'assets/images/sprites/player-atlas.png',
-            'assets/images/sprites/player-atlas.json'
-        );
-
-        // Collectible stars
-        this.load.spritesheet('star-bronze', 'assets/images/sprites/star-bronze.png', {
-            frameWidth: 32,
-            frameHeight: 32
-        });
-        this.load.spritesheet('star-silver', 'assets/images/sprites/star-silver.png', {
-            frameWidth: 32,
-            frameHeight: 32
-        });
-        this.load.spritesheet('star-gold', 'assets/images/sprites/star-gold.png', {
-            frameWidth: 48,
-            frameHeight: 48
-        });
-        this.load.spritesheet('stellar-core', 'assets/images/sprites/stellar-core.png', {
-            frameWidth: 64,
-            frameHeight: 64
-        });
-
-        // ORBIT companion
-        this.load.spritesheet('orbit', 'assets/images/sprites/orbit.png', {
-            frameWidth: 48,
-            frameHeight: 48
-        });
-
-        // Obstacles
-        this.load.spritesheet('asteroid', 'assets/images/sprites/asteroid.png', {
-            frameWidth: 64,
-            frameHeight: 64
-        });
-
-        // Effects
-        this.load.spritesheet('explosion', 'assets/images/sprites/explosion.png', {
-            frameWidth: 64,
-            frameHeight: 64
-        });
-        this.load.spritesheet('sparkle', 'assets/images/sprites/sparkle.png', {
-            frameWidth: 32,
-            frameHeight: 32
-        });
-
-        // ========================================
-        // BACKGROUNDS
-        // ========================================
-
-        this.load.image('bg-space-1', 'assets/images/backgrounds/space-1.png');
-        this.load.image('bg-space-2', 'assets/images/backgrounds/space-2.png');
-        this.load.image('bg-nebula', 'assets/images/backgrounds/nebula.png');
-        this.load.image('bg-asteroid-field', 'assets/images/backgrounds/asteroid-field.png');
-        this.load.image('bg-station', 'assets/images/backgrounds/station.png');
-        this.load.image('bg-planet-mars', 'assets/images/backgrounds/planet-mars.png');
-        this.load.image('bg-planet-jupiter', 'assets/images/backgrounds/planet-jupiter.png');
-
-        // Parallax layers
-        this.load.image('parallax-stars-1', 'assets/images/backgrounds/parallax-stars-1.png');
-        this.load.image('parallax-stars-2', 'assets/images/backgrounds/parallax-stars-2.png');
-        this.load.image('parallax-nebula', 'assets/images/backgrounds/parallax-nebula.png');
-
-        // ========================================
-        // UI ELEMENTS
-        // ========================================
-
-        // Buttons
-        this.load.image('btn-play', 'assets/images/ui/btn-play.png');
-        this.load.image('btn-play-hover', 'assets/images/ui/btn-play-hover.png');
-        this.load.image('btn-settings', 'assets/images/ui/btn-settings.png');
-        this.load.image('btn-leaderboard', 'assets/images/ui/btn-leaderboard.png');
-        this.load.image('btn-back', 'assets/images/ui/btn-back.png');
-        this.load.image('btn-pause', 'assets/images/ui/btn-pause.png');
-        this.load.image('btn-hint', 'assets/images/ui/btn-hint.png');
-
-        // Panels
-        this.load.image('panel-main', 'assets/images/ui/panel-main.png');
-        this.load.image('panel-dialog', 'assets/images/ui/panel-dialog.png');
-        this.load.image('panel-score', 'assets/images/ui/panel-score.png');
-
-        // HUD elements
-        this.load.image('hud-star-counter', 'assets/images/ui/hud-star-counter.png');
-        this.load.image('hud-health', 'assets/images/ui/hud-health.png');
-        this.load.image('heart-full', 'assets/images/ui/heart-full.png');
-        this.load.image('heart-empty', 'assets/images/ui/heart-empty.png');
-
-        // Level select
-        this.load.image('level-locked', 'assets/images/ui/level-locked.png');
-        this.load.image('level-unlocked', 'assets/images/ui/level-unlocked.png');
-        this.load.image('level-completed', 'assets/images/ui/level-completed.png');
-
-        // Virtual joystick
-        this.load.image('joystick-base', 'assets/images/ui/joystick-base.png');
-        this.load.image('joystick-thumb', 'assets/images/ui/joystick-thumb.png');
-
-        // ========================================
-        // AUDIO - SOUND EFFECTS
-        // ========================================
-
-        this.load.audio('sfx-star-collect', 'assets/audio/sfx/star-collect.mp3');
-        this.load.audio('sfx-star-gold', 'assets/audio/sfx/star-gold.mp3');
-        this.load.audio('sfx-boost', 'assets/audio/sfx/boost.mp3');
-        this.load.audio('sfx-hit', 'assets/audio/sfx/hit.mp3');
-        this.load.audio('sfx-button', 'assets/audio/sfx/button-click.mp3');
-        this.load.audio('sfx-success', 'assets/audio/sfx/success.mp3');
-        this.load.audio('sfx-fail', 'assets/audio/sfx/fail.mp3');
-        this.load.audio('sfx-level-complete', 'assets/audio/sfx/level-complete.mp3');
-        this.load.audio('sfx-achievement', 'assets/audio/sfx/achievement.mp3');
-        this.load.audio('sfx-hint', 'assets/audio/sfx/hint.mp3');
-
-        // ========================================
-        // AUDIO - MUSIC
-        // ========================================
-
-        this.load.audio('music-menu', 'assets/audio/music/menu-theme.mp3');
-        this.load.audio('music-game-1', 'assets/audio/music/game-theme-1.mp3');
-        this.load.audio('music-game-2', 'assets/audio/music/game-theme-2.mp3');
-        this.load.audio('music-boss', 'assets/audio/music/boss-theme.mp3');
-        this.load.audio('music-victory', 'assets/audio/music/victory.mp3');
-
-        // ========================================
-        // LEVEL DATA
-        // ========================================
-
-        // Load level configurations
-        for (let chapter = 1; chapter <= 8; chapter++) {
-            for (let level = 1; level <= 5; level++) {
-                this.load.json(`level-${chapter}-${level}`, `assets/data/levels/${chapter}-${level}.json`);
+                if (progress >= 1) {
+                    this.loadComplete = true;
+                    this.loadingText.setText('Tap anywhere to start!');
+                    this.spinner.stop();
+                    this.spinner.setVisible(false);
+                }
             }
-        }
-
-        // Load achievement definitions
-        this.load.json('achievements', 'assets/data/achievements.json');
-
-        // ========================================
-        // TILEMAPS
-        // ========================================
-
-        this.load.image('tileset-space', 'assets/images/tilesets/space-tileset.png');
-        this.load.image('tileset-station', 'assets/images/tilesets/station-tileset.png');
+        });
     }
 
-    /**
-     * Create animations and wait for player input
-     */
     create() {
-        // Create all animations
-        this.createAnimations();
-
-        // Load saved game data
+        // Load saved data
         this.loadSavedData();
 
-        // Wait for player to tap/click
-        this.input.once('pointerdown', () => {
+        // Wait for loading to complete and player tap
+        this.input.on('pointerdown', () => {
             if (this.loadComplete) {
                 this.startGame();
             }
         });
     }
 
-    /**
-     * Create all game animations
-     */
-    createAnimations() {
-        // Player animations
-        this.anims.create({
-            key: 'player-idle',
-            frames: this.anims.generateFrameNumbers('player', { start: 0, end: 3 }),
-            frameRate: 8,
-            repeat: -1
-        });
-
-        this.anims.create({
-            key: 'player-move',
-            frames: this.anims.generateFrameNumbers('player', { start: 4, end: 7 }),
-            frameRate: 12,
-            repeat: -1
-        });
-
-        this.anims.create({
-            key: 'player-boost',
-            frames: this.anims.generateFrameNumbers('player', { start: 8, end: 11 }),
-            frameRate: 16,
-            repeat: -1
-        });
-
-        // Star animations
-        this.anims.create({
-            key: 'star-bronze-spin',
-            frames: this.anims.generateFrameNumbers('star-bronze', { start: 0, end: 7 }),
-            frameRate: 10,
-            repeat: -1
-        });
-
-        this.anims.create({
-            key: 'star-silver-spin',
-            frames: this.anims.generateFrameNumbers('star-silver', { start: 0, end: 7 }),
-            frameRate: 10,
-            repeat: -1
-        });
-
-        this.anims.create({
-            key: 'star-gold-spin',
-            frames: this.anims.generateFrameNumbers('star-gold', { start: 0, end: 7 }),
-            frameRate: 12,
-            repeat: -1
-        });
-
-        // ORBIT companion
-        this.anims.create({
-            key: 'orbit-idle',
-            frames: this.anims.generateFrameNumbers('orbit', { start: 0, end: 3 }),
-            frameRate: 6,
-            repeat: -1
-        });
-
-        this.anims.create({
-            key: 'orbit-talk',
-            frames: this.anims.generateFrameNumbers('orbit', { start: 4, end: 7 }),
-            frameRate: 8,
-            repeat: -1
-        });
-
-        // Effects
-        this.anims.create({
-            key: 'explosion',
-            frames: this.anims.generateFrameNumbers('explosion', { start: 0, end: 7 }),
-            frameRate: 16,
-            hideOnComplete: true
-        });
-
-        this.anims.create({
-            key: 'sparkle',
-            frames: this.anims.generateFrameNumbers('sparkle', { start: 0, end: 5 }),
-            frameRate: 12,
-            hideOnComplete: true
-        });
-    }
-
-    /**
-     * Load saved game data from local storage
-     */
-    async loadSavedData() {
+    loadSavedData() {
         try {
             const savedProgress = SaveManager.loadProgress();
             if (savedProgress) {
                 this.registry.set('playerProgress', savedProgress);
-                console.log('Loaded saved progress:', savedProgress);
             }
-
             const savedSettings = SaveManager.loadSettings();
             if (savedSettings) {
                 this.registry.set('settings', savedSettings);
@@ -408,16 +198,8 @@ export default class PreloadScene extends Phaser.Scene {
         }
     }
 
-    /**
-     * Transition to the main menu
-     */
     startGame() {
-        // Play button sound
-        this.sound.play('sfx-button', { volume: 0.5 });
-
-        // Fade out and start menu
         this.cameras.main.fadeOut(500, 0, 0, 0);
-
         this.cameras.main.once('camerafadeoutcomplete', () => {
             this.scene.start('MenuScene');
         });
