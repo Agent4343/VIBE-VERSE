@@ -1,11 +1,12 @@
 /**
  * MenuScene - Main Menu Scene
  *
- * Simplified version that works without external assets.
+ * Enhanced with engagement features
  */
 
 import Phaser from 'phaser';
 import { DEPTH } from '../config/gameConfig.js';
+import { PlayerData } from '../utils/PlayerData.js';
 
 export default class MenuScene extends Phaser.Scene {
     constructor() {
@@ -15,6 +16,9 @@ export default class MenuScene extends Phaser.Scene {
     init() {
         this.buttons = [];
         this.currentSelection = 0;
+
+        // Update play streak on menu load
+        PlayerData.updatePlayStreak();
     }
 
     create() {
@@ -22,7 +26,6 @@ export default class MenuScene extends Phaser.Scene {
         const centerX = width / 2;
         const centerY = height / 2;
 
-        // Fade in
         this.cameras.main.fadeIn(500);
 
         // Create background
@@ -31,17 +34,23 @@ export default class MenuScene extends Phaser.Scene {
         // Create title
         this.createTitle(centerX);
 
+        // Player stats bar
+        this.createStatsBar(width);
+
         // Create menu buttons
         this.createMenuButtons(centerX, centerY);
 
-        // Create decorative stars
-        this.createDecorations(width, height);
+        // Create quick action buttons
+        this.createQuickButtons(width, height);
+
+        // Daily reward notification
+        this.checkDailyReward(width, height);
 
         // Version text
-        this.add.text(10, height - 30, 'v1.0.0 - Demo', {
+        this.add.text(10, height - 30, 'v2.0.0', {
             fontFamily: 'Arial',
-            fontSize: '16px',
-            color: '#666666'
+            fontSize: '14px',
+            color: '#444444'
         }).setDepth(DEPTH.UI);
 
         // Setup input
@@ -49,56 +58,62 @@ export default class MenuScene extends Phaser.Scene {
     }
 
     createBackground(width, height) {
-        // Use pre-created background
-        this.bg = this.add.image(width / 2, height / 2, 'bg-space-1')
-            .setDisplaySize(width, height)
-            .setDepth(DEPTH.BACKGROUND);
+        // Gradient background
+        const bg = this.add.graphics();
+        bg.fillGradientStyle(0x0a0a2e, 0x0a0a2e, 0x1a1a4e, 0x1a1a4e, 1);
+        bg.fillRect(0, 0, width, height);
+        bg.setDepth(DEPTH.BACKGROUND);
 
-        // Create animated stars manually
-        this.stars = [];
-        for (let i = 0; i < 50; i++) {
+        // Animated stars
+        for (let i = 0; i < 80; i++) {
             const star = this.add.circle(
                 Math.random() * width,
                 Math.random() * height,
-                Math.random() * 2 + 1,
+                Math.random() * 2 + 0.5,
                 0xffffff,
-                Math.random() * 0.5 + 0.5
+                Math.random() * 0.6 + 0.3
             ).setDepth(DEPTH.BACKGROUND + 1);
 
             this.tweens.add({
                 targets: star,
-                alpha: 0.2,
+                alpha: 0.1,
                 duration: Math.random() * 2000 + 1000,
                 yoyo: true,
                 repeat: -1
             });
+        }
 
-            this.stars.push(star);
+        // Nebula effect
+        for (let i = 0; i < 3; i++) {
+            const nebula = this.add.circle(
+                Math.random() * width,
+                Math.random() * height,
+                Math.random() * 150 + 80,
+                [0xff00ff, 0x00ffff, 0x6600ff][i],
+                0.03
+            ).setDepth(DEPTH.BACKGROUND + 2);
         }
     }
 
     createTitle(centerX) {
-        // Title text instead of logo image
-        const title = this.add.text(centerX, 100, 'COSMIC CADET\nACADEMY', {
-            fontFamily: 'Arial Black, Arial',
-            fontSize: '48px',
+        const title = this.add.text(centerX, 80, 'COSMIC CADET\nACADEMY', {
+            fontFamily: 'Arial Black',
+            fontSize: '42px',
             color: '#00ffff',
             align: 'center',
             stroke: '#003366',
-            strokeThickness: 8
+            strokeThickness: 6
         }).setOrigin(0.5).setDepth(DEPTH.UI);
 
-        // Subtitle
-        this.add.text(centerX, 180, 'Space Adventure for Young Explorers', {
+        this.add.text(centerX, 155, '🚀 Space Adventure for Young Explorers 🌟', {
             fontFamily: 'Arial',
-            fontSize: '18px',
+            fontSize: '16px',
             color: '#aaaaff'
         }).setOrigin(0.5).setDepth(DEPTH.UI);
 
-        // Floating animation
         this.tweens.add({
             targets: title,
-            y: '+=8',
+            y: '+=6',
             duration: 2000,
             yoyo: true,
             repeat: -1,
@@ -106,65 +121,106 @@ export default class MenuScene extends Phaser.Scene {
         });
     }
 
+    createStatsBar(width) {
+        const data = PlayerData.data;
+        const y = 185;
+
+        // Coins
+        this.add.text(width / 2 - 120, y, `💰 ${data.coins}`, {
+            fontFamily: 'Arial Black',
+            fontSize: '18px',
+            color: '#ffd700'
+        }).setOrigin(0.5).setDepth(DEPTH.UI);
+
+        // Stars
+        this.add.text(width / 2, y, `⭐ ${data.totalStarsCollected}`, {
+            fontFamily: 'Arial Black',
+            fontSize: '18px',
+            color: '#ffff00'
+        }).setOrigin(0.5).setDepth(DEPTH.UI);
+
+        // Streak
+        if (data.currentStreak > 0) {
+            this.add.text(width / 2 + 120, y, `🔥 ${data.currentStreak}`, {
+                fontFamily: 'Arial Black',
+                fontSize: '18px',
+                color: '#ff6600'
+            }).setOrigin(0.5).setDepth(DEPTH.UI);
+        }
+    }
+
     createMenuButtons(centerX, centerY) {
         const buttonConfig = [
-            { text: 'PLAY', y: centerY + 40, callback: () => this.onPlay() },
-            { text: 'LEVELS', y: centerY + 110, callback: () => this.onLevels() },
-            { text: 'LEADERBOARD', y: centerY + 180, callback: () => this.onLeaderboard() },
-            { text: 'SETTINGS', y: centerY + 250, callback: () => this.onSettings() }
+            { text: '▶ PLAY', y: centerY - 20, callback: () => this.onPlay(), primary: true },
+            { text: '∞ ENDLESS', y: centerY + 50, callback: () => this.onEndless(), color: 0xff00ff },
+            { text: '📋 LEVELS', y: centerY + 110, callback: () => this.onLevels() },
+            { text: '🚀 SHIPS', y: centerY + 170, callback: () => this.onShips() },
+            { text: '🏆 ACHIEVEMENTS', y: centerY + 230, callback: () => this.onAchievements() }
         ];
 
         buttonConfig.forEach((config, index) => {
-            const button = this.createButton(centerX, config.y, config.text, config.callback, index);
+            const button = this.createButton(
+                centerX,
+                config.y,
+                config.text,
+                config.callback,
+                index,
+                config.primary,
+                config.color
+            );
             this.buttons.push(button);
         });
     }
 
-    createButton(x, y, text, callback, index) {
+    createButton(x, y, text, callback, index, primary = false, color = 0x1a4a6e) {
         const container = this.add.container(x, y).setDepth(DEPTH.UI);
 
-        // Button background (graphics)
-        const bg = this.add.graphics();
-        bg.fillStyle(0x1a4a6e, 1);
-        bg.fillRoundedRect(-140, -30, 280, 60, 10);
-        bg.lineStyle(2, 0x00ffff, 1);
-        bg.strokeRoundedRect(-140, -30, 280, 60, 10);
+        const width = primary ? 300 : 260;
+        const height = primary ? 60 : 50;
 
-        // Button text
+        const bg = this.add.graphics();
+        bg.fillStyle(color, 1);
+        bg.fillRoundedRect(-width/2, -height/2, width, height, 10);
+        bg.lineStyle(primary ? 3 : 2, primary ? 0x00ff00 : 0x00ffff, 1);
+        bg.strokeRoundedRect(-width/2, -height/2, width, height, 10);
+
         const label = this.add.text(0, 0, text, {
-            fontFamily: 'Arial Black, Arial',
-            fontSize: '24px',
+            fontFamily: 'Arial Black',
+            fontSize: primary ? '26px' : '20px',
             color: '#ffffff'
         }).setOrigin(0.5);
 
         container.add([bg, label]);
-        container.setSize(280, 60);
+        container.setSize(width, height);
         container.setInteractive({ useHandCursor: true });
 
-        // Store reference for hover effects
         container.bg = bg;
         container.label = label;
+        container.bgColor = color;
+        container.buttonWidth = width;
+        container.buttonHeight = height;
+        container.isPrimary = primary;
 
         // Entrance animation
         container.setAlpha(0);
-        container.x = x - 100;
+        container.x = x - 80;
 
         this.tweens.add({
             targets: container,
             alpha: 1,
             x: x,
-            duration: 400,
+            duration: 350,
             ease: 'Power2',
-            delay: 400 + (index * 100)
+            delay: 300 + (index * 80)
         });
 
         // Hover effects
         container.on('pointerover', () => {
             bg.clear();
-            bg.fillStyle(0x2a6a9e, 1);
-            bg.fillRoundedRect(-140, -30, 280, 60, 10);
-            bg.lineStyle(3, 0x00ffff, 1);
-            bg.strokeRoundedRect(-140, -30, 280, 60, 10);
+            bg.fillStyle(primary ? 0x00aa00 : 0x2a6a9e, 1);
+            bg.fillRoundedRect(-width/2, -height/2, width, height, 10);
+            bg.lineStyle(3, primary ? 0x00ff00 : 0x00ffff, 1);
+            bg.strokeRoundedRect(-width/2, -height/2, width, height, 10);
             this.tweens.add({
                 targets: container,
                 scaleX: 1.05,
@@ -175,10 +231,10 @@ export default class MenuScene extends Phaser.Scene {
 
         container.on('pointerout', () => {
             bg.clear();
-            bg.fillStyle(0x1a4a6e, 1);
-            bg.fillRoundedRect(-140, -30, 280, 60, 10);
-            bg.lineStyle(2, 0x00ffff, 1);
-            bg.strokeRoundedRect(-140, -30, 280, 60, 10);
+            bg.fillStyle(container.bgColor, 1);
+            bg.fillRoundedRect(-width/2, -height/2, width, height, 10);
+            bg.lineStyle(primary ? 3 : 2, primary ? 0x00ff00 : 0x00ffff, 1);
+            bg.strokeRoundedRect(-width/2, -height/2, width, height, 10);
             this.tweens.add({
                 targets: container,
                 scaleX: 1,
@@ -201,25 +257,59 @@ export default class MenuScene extends Phaser.Scene {
         return container;
     }
 
-    createDecorations(width, height) {
-        // Floating decorative elements
-        for (let i = 0; i < 5; i++) {
-            const x = Phaser.Math.Between(50, width - 50);
-            const y = Phaser.Math.Between(50, height - 50);
+    createQuickButtons(width, height) {
+        // Settings button (top right)
+        const settingsBtn = this.add.text(width - 20, 20, '⚙️', {
+            fontSize: '32px'
+        }).setOrigin(1, 0).setDepth(DEPTH.UI)
+            .setInteractive({ useHandCursor: true })
+            .on('pointerover', function() { this.setScale(1.2); })
+            .on('pointerout', function() { this.setScale(1); })
+            .on('pointerdown', () => this.transitionTo('SettingsScene'));
 
-            // Create a simple asteroid shape
-            const asteroid = this.add.graphics();
-            asteroid.fillStyle(0x666677, 0.6);
-            asteroid.fillCircle(0, 0, 15 + Math.random() * 10);
-            asteroid.x = x;
-            asteroid.y = y;
-            asteroid.setDepth(DEPTH.DECORATIONS);
+        // Current ship indicator (bottom left)
+        const ship = PlayerData.getCurrentShip();
+        this.add.text(20, height - 60, `Ship: ${ship.name}`, {
+            fontFamily: 'Arial',
+            fontSize: '14px',
+            color: '#888888'
+        }).setDepth(DEPTH.UI);
 
+        // Best endless time (if any)
+        if (PlayerData.data.endlessBestTime > 0) {
+            this.add.text(width - 20, height - 30, `Best Endless: ${PlayerData.data.endlessBestTime}s`, {
+                fontFamily: 'Arial',
+                fontSize: '14px',
+                color: '#ff00ff'
+            }).setOrigin(1, 0).setDepth(DEPTH.UI);
+        }
+    }
+
+    checkDailyReward(width, height) {
+        const reward = PlayerData.checkDailyReward();
+        if (reward) {
+            // Show notification
+            const notification = this.add.container(width - 100, 80).setDepth(DEPTH.UI + 10);
+
+            const bg = this.add.rectangle(0, 0, 150, 50, 0xffd700, 0.9);
+            bg.setStrokeStyle(2, 0xffaa00);
+            notification.add(bg);
+
+            const text = this.add.text(0, 0, '🎁 Claim Reward!', {
+                fontFamily: 'Arial Black',
+                fontSize: '14px',
+                color: '#000000'
+            }).setOrigin(0.5);
+            notification.add(text);
+
+            notification.setInteractive(new Phaser.Geom.Rectangle(-75, -25, 150, 50), Phaser.Geom.Rectangle.Contains)
+                .on('pointerdown', () => this.transitionTo('AchievementsScene'));
+
+            // Bounce animation
             this.tweens.add({
-                targets: asteroid,
-                x: x + Phaser.Math.Between(-30, 30),
-                y: y + Phaser.Math.Between(-20, 20),
-                duration: Phaser.Math.Between(3000, 6000),
+                targets: notification,
+                y: 75,
+                duration: 500,
                 yoyo: true,
                 repeat: -1,
                 ease: 'Sine.inOut'
@@ -259,24 +349,28 @@ export default class MenuScene extends Phaser.Scene {
 
     // Button callbacks
     onPlay() {
-        const progress = this.registry.get('playerProgress');
+        const progress = PlayerData.data;
         this.registry.set('selectedLevel', {
-            chapter: progress.currentChapter,
-            level: progress.currentLevel
+            chapter: progress.currentChapter || 1,
+            level: progress.currentLevel || 1
         });
         this.transitionTo('GameScene');
+    }
+
+    onEndless() {
+        this.transitionTo('EndlessScene');
     }
 
     onLevels() {
         this.transitionTo('LevelScene');
     }
 
-    onLeaderboard() {
-        this.transitionTo('LeaderboardScene');
+    onShips() {
+        this.transitionTo('ShipSelectScene');
     }
 
-    onSettings() {
-        this.transitionTo('SettingsScene');
+    onAchievements() {
+        this.transitionTo('AchievementsScene');
     }
 
     transitionTo(sceneKey) {

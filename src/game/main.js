@@ -16,6 +16,9 @@ import LevelScene from './scenes/LevelScene.js';
 import LeaderboardScene from './scenes/LeaderboardScene.js';
 import SettingsScene from './scenes/SettingsScene.js';
 import PauseScene from './scenes/PauseScene.js';
+import ShipSelectScene from './scenes/ShipSelectScene.js';
+import EndlessScene from './scenes/EndlessScene.js';
+import AchievementsScene from './scenes/AchievementsScene.js';
 
 // Configuration
 import { gameConfig } from './config/gameConfig.js';
@@ -28,14 +31,17 @@ function initGame() {
     const config = {
         ...gameConfig,
         scene: [
-            BootScene,        // First scene - minimal loading
-            PreloadScene,     // Asset loading with progress bar
-            MenuScene,        // Main menu
-            LevelScene,       // Level selection
-            GameScene,        // Core gameplay
-            LeaderboardScene, // Online leaderboards
-            SettingsScene,    // Options
-            PauseScene        // Pause overlay
+            BootScene,          // First scene - minimal loading
+            PreloadScene,       // Asset loading with progress bar
+            MenuScene,          // Main menu
+            LevelScene,         // Level selection
+            GameScene,          // Core gameplay
+            EndlessScene,       // Endless survival mode
+            ShipSelectScene,    // Ship customization
+            AchievementsScene,  // Achievements & daily rewards
+            LeaderboardScene,   // Online leaderboards
+            SettingsScene,      // Options
+            PauseScene          // Pause overlay
         ]
     };
 
@@ -51,8 +57,7 @@ function initGame() {
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
             game.scene.pause('GameScene');
-        } else {
-            // Don't auto-resume - let player do it
+            game.scene.pause('EndlessScene');
         }
     });
 
