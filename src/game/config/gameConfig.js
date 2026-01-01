@@ -25,6 +25,10 @@ export const gameConfig = {
     scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
+        parent: 'game-container',
+        expandParent: true,  // Expand parent to fill available space
+        width: 960,
+        height: 540,
         min: {
             width: 480,
             height: 270

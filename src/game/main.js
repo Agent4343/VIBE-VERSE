@@ -61,8 +61,24 @@ function initGame() {
         }
     });
 
-    // Note: Do NOT manually resize in FIT mode - Phaser handles it automatically
-    // The FIT scale mode maintains aspect ratio and scales the canvas appropriately
+    // Handle mobile viewport changes (address bar show/hide)
+    // This triggers Phaser's scale manager to refresh without changing internal resolution
+    let resizeTimeout;
+    const handleResize = () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            if (game && game.scale) {
+                game.scale.refresh();
+            }
+        }, 100);
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+
+    // Also refresh on fullscreen changes
+    document.addEventListener('fullscreenchange', handleResize);
+    document.addEventListener('webkitfullscreenchange', handleResize);
 
     return game;
 }
