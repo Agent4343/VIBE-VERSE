@@ -916,6 +916,9 @@ export default class GameScene extends Phaser.Scene {
         this.playSound('win');
         this.player.body.setVelocity(0);
 
+        // Update player progress
+        this.updateProgress();
+
         const session = this.registry.get('session');
         const { width, height } = this.cameras.main;
 
@@ -930,6 +933,9 @@ export default class GameScene extends Phaser.Scene {
             });
         }
 
+        // Calculate next level
+        const nextLevel = this.getNextLevel();
+
         // Victory screen
         this.time.delayedCall(500, () => {
             const overlay = this.add.rectangle(
@@ -940,38 +946,148 @@ export default class GameScene extends Phaser.Scene {
 
             const title = this.add.text(
                 this.cameras.main.scrollX + width/2,
-                this.cameras.main.scrollY + height/2 - 100,
+                this.cameras.main.scrollY + height/2 - 120,
                 '🎉 LEVEL COMPLETE! 🎉',
                 { fontFamily: 'Arial Black', fontSize: '42px', color: '#00ffff' }
             ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1);
 
             this.add.text(
                 this.cameras.main.scrollX + width/2,
-                this.cameras.main.scrollY + height/2,
+                this.cameras.main.scrollY + height/2 - 50,
                 `Final Score: ${session.score}`,
                 { fontFamily: 'Arial', fontSize: '32px', color: '#ffffff' }
             ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1);
 
-            const playAgain = this.add.text(
-                this.cameras.main.scrollX + width/2,
-                this.cameras.main.scrollY + height/2 + 80,
-                '▶ PLAY AGAIN',
-                { fontFamily: 'Arial Black', fontSize: '28px', color: '#00ff00' }
-            ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1)
-                .setInteractive({ useHandCursor: true })
-                .on('pointerover', function() { this.setScale(1.1); })
-                .on('pointerout', function() { this.setScale(1); })
-                .on('pointerdown', () => this.scene.restart());
-
+            // Time bonus display
+            const timeBonus = this.timeLeft * 10;
             this.add.text(
                 this.cameras.main.scrollX + width/2,
-                this.cameras.main.scrollY + height/2 + 140,
-                'Back to Menu',
+                this.cameras.main.scrollY + height/2 - 10,
+                `Time Bonus: +${timeBonus}`,
+                { fontFamily: 'Arial', fontSize: '20px', color: '#ffff00' }
+            ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1);
+
+            // Next Level button (primary action)
+            if (nextLevel) {
+                const nextBtn = this.add.text(
+                    this.cameras.main.scrollX + width/2,
+                    this.cameras.main.scrollY + height/2 + 50,
+                    '▶ NEXT LEVEL',
+                    { fontFamily: 'Arial Black', fontSize: '32px', color: '#00ff00' }
+                ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1)
+                    .setInteractive({ useHandCursor: true })
+                    .on('pointerover', function() { this.setScale(1.1); })
+                    .on('pointerout', function() { this.setScale(1); })
+                    .on('pointerdown', () => this.goToNextLevel());
+
+                // Pulsing effect on next level button
+                this.tweens.add({
+                    targets: nextBtn,
+                    scale: { from: 1, to: 1.05 },
+                    duration: 500,
+                    yoyo: true,
+                    repeat: -1
+                });
+            } else {
+                // All levels complete!
+                this.add.text(
+                    this.cameras.main.scrollX + width/2,
+                    this.cameras.main.scrollY + height/2 + 50,
+                    '🏆 ALL LEVELS COMPLETE! 🏆',
+                    { fontFamily: 'Arial Black', fontSize: '28px', color: '#ffd700' }
+                ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1);
+            }
+
+            // Replay button
+            this.add.text(
+                this.cameras.main.scrollX + width/2,
+                this.cameras.main.scrollY + height/2 + 110,
+                '↻ Replay Level',
                 { fontFamily: 'Arial', fontSize: '20px', color: '#888888' }
             ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1)
                 .setInteractive({ useHandCursor: true })
+                .on('pointerover', function() { this.setColor('#ffffff'); })
+                .on('pointerout', function() { this.setColor('#888888'); })
+                .on('pointerdown', () => this.scene.restart());
+
+            // Menu button
+            this.add.text(
+                this.cameras.main.scrollX + width/2,
+                this.cameras.main.scrollY + height/2 + 150,
+                'Back to Menu',
+                { fontFamily: 'Arial', fontSize: '18px', color: '#666666' }
+            ).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1)
+                .setInteractive({ useHandCursor: true })
+                .on('pointerover', function() { this.setColor('#888888'); })
+                .on('pointerout', function() { this.setColor('#666666'); })
                 .on('pointerdown', () => this.scene.start('MenuScene'));
         });
+    }
+
+    getNextLevel() {
+        const levelsPerChapter = 5;
+        const totalChapters = 8;
+
+        let nextChapter = this.chapter;
+        let nextLevelNum = this.level + 1;
+
+        // Move to next chapter if we finished all levels in current chapter
+        if (nextLevelNum > levelsPerChapter) {
+            nextChapter++;
+            nextLevelNum = 1;
+        }
+
+        // Check if there are more levels
+        if (nextChapter > totalChapters) {
+            return null; // All levels complete!
+        }
+
+        return { chapter: nextChapter, level: nextLevelNum };
+    }
+
+    goToNextLevel() {
+        const nextLevel = this.getNextLevel();
+        if (!nextLevel) {
+            this.scene.start('MenuScene');
+            return;
+        }
+
+        // Update registry with next level
+        this.registry.set('selectedLevel', nextLevel);
+
+        // Transition to next level
+        this.cameras.main.fadeOut(300);
+        this.cameras.main.once('camerafadeoutcomplete', () => {
+            this.scene.start('GameScene', { level: nextLevel });
+        });
+    }
+
+    updateProgress() {
+        const progress = this.registry.get('playerProgress') || {
+            currentChapter: 1,
+            currentLevel: 1,
+            totalStars: 0,
+            unlockedLevels: ['1-1'],
+            achievements: []
+        };
+
+        // Add score to total stars (simplified: 1 star per 100 points)
+        const session = this.registry.get('session');
+        const starsEarned = Math.floor(session.score / 100) + 1;
+        progress.totalStars += starsEarned;
+
+        // Unlock next level
+        const nextLevel = this.getNextLevel();
+        if (nextLevel) {
+            const nextLevelKey = `${nextLevel.chapter}-${nextLevel.level}`;
+            if (!progress.unlockedLevels.includes(nextLevelKey)) {
+                progress.unlockedLevels.push(nextLevelKey);
+            }
+            progress.currentChapter = nextLevel.chapter;
+            progress.currentLevel = nextLevel.level;
+        }
+
+        this.registry.set('playerProgress', progress);
     }
 
     gameOver() {
