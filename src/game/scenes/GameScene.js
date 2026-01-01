@@ -12,7 +12,7 @@
 
 import Phaser from 'phaser';
 import { GAME_CONSTANTS, DEPTH } from '../config/gameConfig.js';
-import { PlayerData } from '../utils/PlayerData.js';
+import { PlayerData, TRAILS } from '../utils/PlayerData.js';
 
 export default class GameScene extends Phaser.Scene {
     constructor() {
@@ -49,6 +49,12 @@ export default class GameScene extends Phaser.Scene {
         this.maxCombo = 0;
         this.starsCollected = 0;
         this.damageTaken = 0;
+
+        // Visual effects
+        this.trailConfig = PlayerData.getCurrentTrail();
+        this.rainbowHue = 0;
+        this.speedLineAlpha = 0;
+        this.parallaxLayers = [];
     }
 
     getLevelConfig() {
@@ -175,12 +181,14 @@ export default class GameScene extends Phaser.Scene {
         this.worldWidth = config.worldWidth;
         this.worldHeight = config.worldHeight;
 
+        this.createParallaxBackground(width, height);
         this.createBackground(width, height);
         this.createPlayer();
         this.createStars();
         this.createObstacles();
         this.createEnemies();
         this.createParticles();
+        this.createSpeedLines(width, height);
         this.createHUD(width, height);
         this.setupControls(width, height);
         this.startTimer();
@@ -245,6 +253,111 @@ export default class GameScene extends Phaser.Scene {
                     break;
             }
         };
+    }
+
+    createParallaxBackground(width, height) {
+        // Create multiple layers of parallax stars that move with the camera
+        const layerConfigs = [
+            { count: 80, sizeMin: 0.5, sizeMax: 1.5, alphaMin: 0.15, alphaMax: 0.4, speed: 0.1, color: 0xffffff },
+            { count: 50, sizeMin: 1, sizeMax: 2.5, alphaMin: 0.3, alphaMax: 0.6, speed: 0.25, color: 0xaaddff },
+            { count: 30, sizeMin: 2, sizeMax: 4, alphaMin: 0.5, alphaMax: 0.9, speed: 0.4, color: 0xffffff }
+        ];
+
+        layerConfigs.forEach((config, layerIndex) => {
+            const layer = {
+                stars: [],
+                speed: config.speed
+            };
+
+            for (let i = 0; i < config.count; i++) {
+                const x = Phaser.Math.Between(0, width);
+                const y = Phaser.Math.Between(0, height);
+                const size = Phaser.Math.FloatBetween(config.sizeMin, config.sizeMax);
+                const alpha = Phaser.Math.FloatBetween(config.alphaMin, config.alphaMax);
+
+                const star = this.add.circle(x, y, size, config.color, alpha);
+                star.setScrollFactor(0);
+                star.setDepth(DEPTH.BACKGROUND - 10 + layerIndex);
+                star.baseX = x;
+                star.baseY = y;
+
+                // Add subtle twinkle animation
+                this.tweens.add({
+                    targets: star,
+                    alpha: { from: alpha, to: alpha * 0.3 },
+                    duration: Phaser.Math.Between(1500, 4000),
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut',
+                    delay: Phaser.Math.Between(0, 2000)
+                });
+
+                layer.stars.push(star);
+            }
+
+            this.parallaxLayers.push(layer);
+        });
+
+        // Add distant nebula clouds that parallax
+        const nebulaColors = [0xff00ff, 0x00ffff, 0xff6600, 0x0066ff, 0x9900ff];
+        for (let i = 0; i < 4; i++) {
+            const nebula = this.add.circle(
+                Phaser.Math.Between(0, width),
+                Phaser.Math.Between(0, height),
+                Phaser.Math.Between(80, 200),
+                Phaser.Math.RND.pick(nebulaColors),
+                0.03
+            );
+            nebula.setScrollFactor(0);
+            nebula.setDepth(DEPTH.BACKGROUND - 5);
+            nebula.baseX = nebula.x;
+            nebula.baseY = nebula.y;
+
+            // Pulse effect
+            this.tweens.add({
+                targets: nebula,
+                alpha: { from: 0.03, to: 0.06 },
+                scale: { from: 1, to: 1.2 },
+                duration: Phaser.Math.Between(3000, 6000),
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+
+            // Track as part of slowest parallax layer
+            if (this.parallaxLayers[0]) {
+                nebula.parallaxSpeed = 0.05;
+                this.parallaxLayers[0].stars.push(nebula);
+            }
+        }
+    }
+
+    createSpeedLines(width, height) {
+        // Create speed lines that appear when moving fast
+        this.speedLinesContainer = this.add.container(width / 2, height / 2);
+        this.speedLinesContainer.setScrollFactor(0);
+        this.speedLinesContainer.setDepth(DEPTH.UI - 5);
+        this.speedLinesContainer.setAlpha(0);
+
+        // Create multiple speed lines
+        for (let i = 0; i < 20; i++) {
+            const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+            const distance = Phaser.Math.Between(100, 300);
+            const length = Phaser.Math.Between(30, 80);
+
+            const line = this.add.graphics();
+            line.lineStyle(2, 0xffffff, 0.6);
+            line.beginPath();
+            line.moveTo(0, 0);
+            line.lineTo(length, 0);
+            line.strokePath();
+
+            line.x = Math.cos(angle) * distance;
+            line.y = Math.sin(angle) * distance;
+            line.rotation = angle;
+
+            this.speedLinesContainer.add(line);
+        }
     }
 
     createBackground(width, height) {
@@ -801,16 +914,53 @@ export default class GameScene extends Phaser.Scene {
     }
 
     createParticles() {
-        // Create particle emitter for star collection
+        // Create particle emitter for star collection - enhanced with trails
         this.collectParticles = this.add.particles(0, 0, {
-            speed: { min: 50, max: 150 },
-            scale: { start: 0.5, end: 0 },
+            speed: { min: 80, max: 200 },
+            scale: { start: 0.8, end: 0 },
             alpha: { start: 1, end: 0 },
-            lifespan: 500,
+            lifespan: 600,
             blendMode: 'ADD',
-            emitting: false
+            emitting: false,
+            rotate: { min: 0, max: 360 }
         });
         this.collectParticles.setDepth(DEPTH.EFFECTS);
+
+        // Secondary sparkle particles for extra flair
+        this.sparkleParticles = this.add.particles(0, 0, {
+            speed: { min: 20, max: 80 },
+            scale: { start: 0.3, end: 0.1 },
+            alpha: { start: 0.8, end: 0 },
+            lifespan: 800,
+            blendMode: 'ADD',
+            emitting: false,
+            angle: { min: 0, max: 360 }
+        });
+        this.sparkleParticles.setDepth(DEPTH.EFFECTS + 1);
+
+        // Damage burst particles
+        this.damageParticles = this.add.particles(0, 0, {
+            speed: { min: 100, max: 250 },
+            scale: { start: 0.6, end: 0 },
+            alpha: { start: 1, end: 0 },
+            lifespan: 400,
+            blendMode: 'ADD',
+            emitting: false,
+            tint: 0xff0000
+        });
+        this.damageParticles.setDepth(DEPTH.EFFECTS);
+
+        // Combo burst particles
+        this.comboParticles = this.add.particles(0, 0, {
+            speed: { min: 150, max: 350 },
+            scale: { start: 1, end: 0 },
+            alpha: { start: 1, end: 0 },
+            lifespan: 700,
+            blendMode: 'ADD',
+            emitting: false,
+            angle: { min: 0, max: 360 }
+        });
+        this.comboParticles.setDepth(DEPTH.EFFECTS + 2);
     }
 
     createHUD(width, height) {
@@ -1088,11 +1238,30 @@ export default class GameScene extends Phaser.Scene {
         // Update combo display
         this.updateComboDisplay();
 
-        // Particles - more particles for higher combo
+        // Enhanced particles - more particles for higher combo
         const color = star.starColor || 0xff00ff;
         this.collectParticles.setPosition(star.x, star.y);
         this.collectParticles.setParticleTint(color);
-        this.collectParticles.explode(15 + this.combo * 2);
+        this.collectParticles.explode(18 + this.combo * 3);
+
+        // Extra sparkle particles
+        this.sparkleParticles.setPosition(star.x, star.y);
+        this.sparkleParticles.setParticleTint(0xffffff);
+        this.sparkleParticles.explode(10 + this.combo);
+
+        // Combo burst effect for high combos
+        if (this.combo >= 3) {
+            this.triggerComboBurst(star.x, star.y, this.combo);
+        }
+
+        // Screen flash for big combos
+        if (this.combo >= 5) {
+            this.cameras.main.flash(100, 255, 255, 255, false, null, this, 0.1);
+        }
+        if (this.combo >= 10) {
+            this.cameras.main.flash(150, 255, 200, 0, false, null, this, 0.2);
+            this.cameras.main.shake(100, 0.01);
+        }
 
         // Floating text with combo info
         const comboText = this.combo > 1 ? ` x${this.combo}` : '';
@@ -1169,6 +1338,54 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
+    triggerComboBurst(x, y, comboLevel) {
+        // Determine burst color based on combo level
+        let burstColor = 0x00ffff;
+        if (comboLevel >= 10) {
+            burstColor = 0xff00ff;
+        } else if (comboLevel >= 7) {
+            burstColor = 0xffd700;
+        } else if (comboLevel >= 5) {
+            burstColor = 0xffff00;
+        }
+
+        // Emit combo burst particles
+        this.comboParticles.setPosition(x, y);
+        this.comboParticles.setParticleTint(burstColor);
+        this.comboParticles.explode(10 + comboLevel * 5);
+
+        // Create expanding ring effect
+        const ring = this.add.circle(x, y, 10, burstColor, 0);
+        ring.setStrokeStyle(3, burstColor, 0.8);
+        ring.setDepth(DEPTH.EFFECTS);
+
+        this.tweens.add({
+            targets: ring,
+            radius: 80 + comboLevel * 10,
+            alpha: 0,
+            duration: 400,
+            ease: 'Power2',
+            onComplete: () => ring.destroy()
+        });
+
+        // Secondary ring for high combos
+        if (comboLevel >= 5) {
+            const ring2 = this.add.circle(x, y, 15, 0xffffff, 0);
+            ring2.setStrokeStyle(2, 0xffffff, 0.6);
+            ring2.setDepth(DEPTH.EFFECTS);
+
+            this.tweens.add({
+                targets: ring2,
+                radius: 120 + comboLevel * 5,
+                alpha: 0,
+                duration: 500,
+                ease: 'Power2',
+                delay: 50,
+                onComplete: () => ring2.destroy()
+            });
+        }
+    }
+
     hitObstacle(player, obstacle) {
         if (this.player.isInvincible || this.isComplete) return;
 
@@ -1181,11 +1398,29 @@ export default class GameScene extends Phaser.Scene {
         this.combo = 0;
         this.updateComboDisplay();
 
-        // Screen shake
-        this.cameras.main.shake(300, 0.02);
+        // Enhanced screen shake
+        this.cameras.main.shake(300, 0.025);
 
-        // Flash red
+        // Flash red with vignette effect
         this.cameras.main.flash(200, 255, 0, 0, false);
+
+        // Damage burst particles
+        this.damageParticles.setPosition(player.x, player.y);
+        this.damageParticles.explode(25);
+
+        // Create damage ring effect
+        const damageRing = this.add.circle(player.x, player.y, 20, 0xff0000, 0);
+        damageRing.setStrokeStyle(4, 0xff0000, 0.8);
+        damageRing.setDepth(DEPTH.EFFECTS);
+
+        this.tweens.add({
+            targets: damageRing,
+            radius: 100,
+            alpha: 0,
+            duration: 300,
+            ease: 'Power2',
+            onComplete: () => damageRing.destroy()
+        });
 
         // Knockback
         const angle = Phaser.Math.Angle.Between(obstacle.x, obstacle.y, player.x, player.y);
@@ -1566,16 +1801,134 @@ export default class GameScene extends Phaser.Scene {
             this.minimapPlayer.y = y + (this.player.y / this.worldHeight) * size;
         }
 
-        // Trail effect
-        if (moving && time % 50 < 20) {
-            const trail = this.add.circle(this.player.x, this.player.y, 4, 0x00ffff, 0.5);
-            trail.setDepth(DEPTH.PLAYER - 1);
+        // Update parallax background
+        this.updateParallax();
+
+        // Update speed lines based on velocity
+        this.updateSpeedLines(vx, vy);
+
+        // Enhanced trail effect with player's selected trail
+        this.updateTrail(time, moving);
+    }
+
+    updateParallax() {
+        const scrollX = this.cameras.main.scrollX;
+        const scrollY = this.cameras.main.scrollY;
+        const { width, height } = this.cameras.main;
+
+        this.parallaxLayers.forEach((layer, index) => {
+            layer.stars.forEach(star => {
+                const speed = star.parallaxSpeed !== undefined ? star.parallaxSpeed : layer.speed;
+
+                // Calculate parallax offset
+                const offsetX = (scrollX * speed) % width;
+                const offsetY = (scrollY * speed) % height;
+
+                // Position stars relative to camera with parallax
+                star.x = ((star.baseX - offsetX) % width + width) % width;
+                star.y = ((star.baseY - offsetY) % height + height) % height;
+            });
+        });
+    }
+
+    updateSpeedLines(vx, vy) {
+        const playerSpeed = Math.sqrt(vx * vx + vy * vy);
+        const targetAlpha = playerSpeed > 0.7 ? 0.3 : 0;
+
+        // Smooth transition
+        this.speedLineAlpha = Phaser.Math.Linear(this.speedLineAlpha, targetAlpha, 0.1);
+        this.speedLinesContainer.setAlpha(this.speedLineAlpha);
+
+        // Rotate speed lines towards movement direction
+        if (playerSpeed > 0.1) {
+            const angle = Math.atan2(vy, vx) + Math.PI;
+            this.speedLinesContainer.rotation = Phaser.Math.Angle.RotateTo(
+                this.speedLinesContainer.rotation,
+                angle,
+                0.1
+            );
+        }
+    }
+
+    updateTrail(time, moving) {
+        if (!moving || time % 40 > 20) return;
+
+        const trail = this.trailConfig;
+        if (!trail || trail.id === 'none') return;
+
+        // Calculate trail color
+        let trailColor = trail.color;
+
+        // Rainbow effect - cycle through hues
+        if (trail.id === 'rainbow') {
+            this.rainbowHue = (this.rainbowHue + 3) % 360;
+            const rgb = Phaser.Display.Color.HSLToColor(this.rainbowHue / 360, 1, 0.5);
+            trailColor = Phaser.Display.Color.GetColor(rgb.r, rgb.g, rgb.b);
+        }
+
+        // Calculate trail alpha
+        const trailAlpha = trail.alpha !== undefined ? trail.alpha : 0.6;
+
+        // Create trail particle
+        const trailSize = trail.particles ? 6 : 5;
+        const trailParticle = this.add.circle(this.player.x, this.player.y, trailSize, trailColor, trailAlpha);
+        trailParticle.setDepth(DEPTH.PLAYER - 1);
+
+        // Enhanced trail animation
+        this.tweens.add({
+            targets: trailParticle,
+            alpha: 0,
+            scale: trail.particles ? 1.5 : 0,
+            duration: trail.particles ? 700 : 500,
+            ease: 'Power2',
+            onComplete: () => trailParticle.destroy()
+        });
+
+        // Plasma trail - add extra glowing particles
+        if (trail.particles && time % 80 < 20) {
+            const glow = this.add.circle(
+                this.player.x + Phaser.Math.Between(-5, 5),
+                this.player.y + Phaser.Math.Between(-5, 5),
+                3,
+                trailColor,
+                0.8
+            );
+            glow.setDepth(DEPTH.PLAYER - 1);
+
             this.tweens.add({
-                targets: trail,
+                targets: glow,
                 alpha: 0,
-                scale: 0,
-                duration: 500,
-                onComplete: () => trail.destroy()
+                scale: 2,
+                duration: 400,
+                ease: 'Power2',
+                onComplete: () => glow.destroy()
+            });
+        }
+
+        // Ghost trail - add afterimage effect
+        if (trail.id === 'ghost' && time % 120 < 20) {
+            const ghost = this.add.container(this.player.x, this.player.y);
+            ghost.setDepth(DEPTH.PLAYER - 2);
+            ghost.rotation = this.player.rotation;
+            ghost.setAlpha(0.3);
+
+            const ghostShip = this.add.graphics();
+            ghostShip.fillStyle(0xffffff, 0.5);
+            ghostShip.beginPath();
+            ghostShip.moveTo(0, -20);
+            ghostShip.lineTo(-14, 16);
+            ghostShip.lineTo(14, 16);
+            ghostShip.closePath();
+            ghostShip.fill();
+            ghost.add(ghostShip);
+
+            this.tweens.add({
+                targets: ghost,
+                alpha: 0,
+                scale: 0.8,
+                duration: 600,
+                ease: 'Power2',
+                onComplete: () => ghost.destroy()
             });
         }
     }
