@@ -47,23 +47,8 @@ app.use(helmet({
 // CORS configuration
 const corsOptions = {
     origin: (origin, callback) => {
-        const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
-
-        // Allow requests with no origin (mobile apps, curl, etc.)
-        if (!origin) {
-            return callback(null, true);
-        }
-
-        // In development, allow all origins
-        if (process.env.NODE_ENV === 'development') {
-            return callback(null, true);
-        }
-
-        if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
+        // Allow all origins by default (safe for a game without sensitive data)
+        callback(null, true);
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -127,20 +112,18 @@ if (process.env.NODE_ENV === 'development') {
 // Static Files
 // ========================================
 
-// Serve game client in production
-if (process.env.NODE_ENV === 'production') {
-    const publicPath = path.join(__dirname, '../../public');
-    app.use(express.static(publicPath, {
-        maxAge: '1y',
-        etag: true,
-        setHeaders: (res, filePath) => {
-            // Set immutable cache for hashed assets
-            if (filePath.includes('/assets/')) {
-                res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-            }
+// Serve game client - use dist/ folder (Vite build output)
+const distPath = path.join(__dirname, '../../dist');
+app.use(express.static(distPath, {
+    maxAge: '1y',
+    etag: true,
+    setHeaders: (res, filePath) => {
+        // Set immutable cache for hashed assets
+        if (filePath.includes('/assets/')) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         }
-    }));
-}
+    }
+}));
 
 // ========================================
 // API Routes
@@ -162,14 +145,12 @@ app.get('/health', (req, res) => {
 });
 
 // ========================================
-// SPA Fallback (Production)
+// SPA Fallback
 // ========================================
 
-if (process.env.NODE_ENV === 'production') {
-    app.get('*', (req, res) => {
-        res.sendFile(path.join(__dirname, '../../public/index.html'));
-    });
-}
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../dist/index.html'));
+});
 
 // ========================================
 // Error Handling
