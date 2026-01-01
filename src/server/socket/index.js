@@ -9,10 +9,32 @@
 
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
-import { Score, User } from '../models/index.js';
-import { Op } from 'sequelize';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'development-secret';
+
+// Lazy-loaded database models
+let Score = null;
+let User = null;
+let Op = null;
+let modelsLoaded = false;
+
+async function loadModels() {
+    if (modelsLoaded) return true;
+    if (!process.env.DATABASE_URL) return false;
+
+    try {
+        const models = await import('../models/index.js');
+        const sequelize = await import('sequelize');
+        Score = models.Score;
+        User = models.User;
+        Op = sequelize.Op;
+        modelsLoaded = true;
+        return true;
+    } catch (error) {
+        console.warn('Socket: Failed to load database models:', error.message);
+        return false;
+    }
+}
 
 /**
  * Initialize Socket.IO server
@@ -69,7 +91,17 @@ export function initializeSocket(httpServer) {
             socket.join(room);
             console.log(`${socket.id} subscribed to ${room}`);
 
-            // Send current top scores
+            // Send current top scores (requires database)
+            const dbReady = await loadModels();
+            if (!dbReady) {
+                socket.emit('leaderboard:data', {
+                    level: levelId || 'global',
+                    scores: [],
+                    message: 'Database not available'
+                });
+                return;
+            }
+
             try {
                 const where = levelId ? { levelId } : {};
                 const scores = await Score.findAll({
@@ -104,6 +136,11 @@ export function initializeSocket(httpServer) {
         socket.on('score:submit', async (data, callback) => {
             if (!socket.user) {
                 return callback?.({ error: 'Authentication required' });
+            }
+
+            const dbReady = await loadModels();
+            if (!dbReady) {
+                return callback?.({ error: 'Database not available' });
             }
 
             try {
@@ -173,6 +210,11 @@ export function initializeSocket(httpServer) {
         socket.on('rank:get', async (levelId, callback) => {
             if (!socket.user) {
                 return callback?.({ rank: null });
+            }
+
+            const dbReady = await loadModels();
+            if (!dbReady) {
+                return callback?.({ rank: null, message: 'Database not available' });
             }
 
             try {
