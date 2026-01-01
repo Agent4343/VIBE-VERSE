@@ -67,7 +67,7 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.overlap(this.player, this.obstacles, this.hitObstacle, null, this);
         this.physics.add.overlap(this.player, this.enemyGroup, this.hitEnemy, null, this);
 
-        console.log(`Started level ${this.levelKey}`);
+        console.log(`Started level ${this.levelKey} - v2`);
     }
 
     initSound() {
