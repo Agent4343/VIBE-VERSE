@@ -24,6 +24,9 @@ export default class GameScene extends Phaser.Scene {
         this.level = selectedLevel?.level || 1;
         this.levelKey = `${this.chapter}-${this.level}`;
 
+        // Calculate level-specific settings
+        this.levelConfig = this.getLevelConfig();
+
         this.registry.set('session', {
             score: 0,
             lives: 3,
@@ -33,20 +36,137 @@ export default class GameScene extends Phaser.Scene {
 
         this.isPaused = false;
         this.isComplete = false;
-        this.playerHealth = 3;
-        this.timeLeft = 90; // 90 second time limit
+        this.playerHealth = 3 + this.levelConfig.extraHealth;
+        this.maxHealth = this.playerHealth;
+        this.timeLeft = this.levelConfig.timeLimit;
         this.enemies = [];
+        this.chasers = [];
+    }
+
+    getLevelConfig() {
+        // Each chapter introduces new challenges
+        // Each level within a chapter increases intensity
+        const chapterConfigs = {
+            1: { // Training Grounds - Easy introduction
+                worldSize: { w: 1600, h: 900 },
+                stars: { bronze: 8, silver: 3, gold: 1 },
+                asteroids: 5,
+                drones: 0,
+                chasers: 0,
+                timeLimit: 120,
+                extraHealth: 0,
+                theme: 'blue'
+            },
+            2: { // Asteroid Belt - More obstacles
+                worldSize: { w: 2000, h: 1200 },
+                stars: { bronze: 12, silver: 5, gold: 2 },
+                asteroids: 12,
+                drones: 1,
+                chasers: 0,
+                timeLimit: 110,
+                extraHealth: 0,
+                theme: 'purple'
+            },
+            3: { // Mars Station - Enemies appear
+                worldSize: { w: 2200, h: 1300 },
+                stars: { bronze: 15, silver: 6, gold: 2 },
+                asteroids: 10,
+                drones: 2,
+                chasers: 1,
+                timeLimit: 100,
+                extraHealth: 0,
+                theme: 'red'
+            },
+            4: { // Jupiter's Eye - Bigger world
+                worldSize: { w: 2560, h: 1440 },
+                stars: { bronze: 18, silver: 8, gold: 3 },
+                asteroids: 15,
+                drones: 3,
+                chasers: 1,
+                timeLimit: 100,
+                extraHealth: 0,
+                theme: 'orange'
+            },
+            5: { // Saturn's Rings - More enemies
+                worldSize: { w: 2800, h: 1600 },
+                stars: { bronze: 20, silver: 10, gold: 3 },
+                asteroids: 18,
+                drones: 4,
+                chasers: 2,
+                timeLimit: 95,
+                extraHealth: 1,
+                theme: 'gold'
+            },
+            6: { // Neptune's Deep - Fast enemies
+                worldSize: { w: 3000, h: 1700 },
+                stars: { bronze: 22, silver: 12, gold: 4 },
+                asteroids: 20,
+                drones: 5,
+                chasers: 2,
+                timeLimit: 90,
+                extraHealth: 1,
+                theme: 'cyan'
+            },
+            7: { // Kuiper Station - Challenge mode
+                worldSize: { w: 3200, h: 1800 },
+                stars: { bronze: 25, silver: 14, gold: 5 },
+                asteroids: 25,
+                drones: 6,
+                chasers: 3,
+                timeLimit: 85,
+                extraHealth: 1,
+                theme: 'pink'
+            },
+            8: { // The Dark Nebula - Ultimate challenge
+                worldSize: { w: 3500, h: 2000 },
+                stars: { bronze: 30, silver: 16, gold: 6 },
+                asteroids: 30,
+                drones: 8,
+                chasers: 4,
+                timeLimit: 80,
+                extraHealth: 2,
+                theme: 'dark'
+            }
+        };
+
+        const baseConfig = chapterConfigs[this.chapter] || chapterConfigs[1];
+
+        // Level within chapter adds incremental difficulty
+        const levelMultiplier = 1 + (this.level - 1) * 0.15;
+
+        return {
+            worldWidth: baseConfig.worldSize.w,
+            worldHeight: baseConfig.worldSize.h,
+            bronzeStars: Math.floor(baseConfig.stars.bronze * levelMultiplier),
+            silverStars: Math.floor(baseConfig.stars.silver * levelMultiplier),
+            goldStars: Math.floor(baseConfig.stars.gold + (this.level - 1) * 0.5),
+            asteroidCount: Math.floor(baseConfig.asteroids * levelMultiplier),
+            droneCount: baseConfig.drones + Math.floor((this.level - 1) * 0.5),
+            chaserCount: baseConfig.chasers + (this.level >= 4 ? 1 : 0),
+            timeLimit: Math.max(60, baseConfig.timeLimit - (this.level - 1) * 5),
+            extraHealth: baseConfig.extraHealth,
+            theme: baseConfig.theme,
+            // Seeded random for consistent level generation
+            seed: this.chapter * 1000 + this.level
+        };
     }
 
     create() {
         const { width, height } = this.cameras.main;
+        const config = this.levelConfig;
+
+        // Seeded random for consistent level generation
+        this.rng = new Phaser.Math.RandomDataGenerator([config.seed.toString()]);
 
         this.cameras.main.fadeIn(500);
 
         // Initialize sound
         this.initSound();
 
-        // Create world
+        // Create world with level-specific size
+        this.worldWidth = config.worldWidth;
+        this.worldHeight = config.worldHeight;
+
         this.createBackground(width, height);
         this.createPlayer();
         this.createStars();
@@ -57,9 +177,9 @@ export default class GameScene extends Phaser.Scene {
         this.setupControls(width, height);
         this.startTimer();
 
-        // Setup camera
-        this.physics.world.setBounds(0, 0, 2560, 1440);
-        this.cameras.main.setBounds(0, 0, 2560, 1440);
+        // Setup camera with level-specific world size
+        this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
+        this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight);
         this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
 
         // Collisions
@@ -67,7 +187,7 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.overlap(this.player, this.obstacles, this.hitObstacle, null, this);
         this.physics.add.overlap(this.player, this.enemyGroup, this.hitEnemy, null, this);
 
-        console.log(`Started level ${this.levelKey} - v2`);
+        console.log(`Started level ${this.levelKey} - World: ${this.worldWidth}x${this.worldHeight}`);
     }
 
     initSound() {
@@ -120,38 +240,54 @@ export default class GameScene extends Phaser.Scene {
     }
 
     createBackground(width, height) {
-        // Gradient background
+        // Theme-based colors for each chapter
+        const themes = {
+            blue: { top: 0x0a0a2e, bottom: 0x1a0a3e, nebula: 0x0066ff },
+            purple: { top: 0x1a0a2e, bottom: 0x2a1a4e, nebula: 0x9900ff },
+            red: { top: 0x2e0a0a, bottom: 0x4e1a1a, nebula: 0xff3300 },
+            orange: { top: 0x2e1a0a, bottom: 0x4e2a1a, nebula: 0xff6600 },
+            gold: { top: 0x2e2a0a, bottom: 0x4e3a1a, nebula: 0xffcc00 },
+            cyan: { top: 0x0a2a2e, bottom: 0x1a3a4e, nebula: 0x00ffff },
+            pink: { top: 0x2e0a2a, bottom: 0x4e1a3a, nebula: 0xff00ff },
+            dark: { top: 0x050510, bottom: 0x0a0a20, nebula: 0x333366 }
+        };
+
+        const theme = themes[this.levelConfig.theme] || themes.blue;
+
+        // Gradient background - using world size
         const bg = this.add.graphics();
-        bg.fillGradientStyle(0x0a0a2e, 0x0a0a2e, 0x1a0a3e, 0x1a0a3e, 1);
-        bg.fillRect(0, 0, 2560, 1440);
+        bg.fillGradientStyle(theme.top, theme.top, theme.bottom, theme.bottom, 1);
+        bg.fillRect(0, 0, this.worldWidth, this.worldHeight);
         bg.setDepth(DEPTH.BACKGROUND);
 
-        // Animated stars
-        for (let i = 0; i < 200; i++) {
-            const x = Math.random() * 2560;
-            const y = Math.random() * 1440;
-            const size = Math.random() * 2 + 0.5;
-            const star = this.add.circle(x, y, size, 0xffffff, Math.random() * 0.8 + 0.2);
+        // Animated stars - scale count with world size
+        const starCount = Math.floor((this.worldWidth * this.worldHeight) / 10000);
+        for (let i = 0; i < starCount; i++) {
+            const x = this.rng.between(0, this.worldWidth);
+            const y = this.rng.between(0, this.worldHeight);
+            const size = this.rng.realInRange(0.5, 2.5);
+            const star = this.add.circle(x, y, size, 0xffffff, this.rng.realInRange(0.2, 0.9));
             star.setDepth(DEPTH.BACKGROUND + 1);
 
             this.tweens.add({
                 targets: star,
                 alpha: { from: star.alpha, to: 0.1 },
-                duration: Math.random() * 2000 + 1000,
+                duration: this.rng.between(1000, 3000),
                 yoyo: true,
                 repeat: -1,
                 ease: 'Sine.easeInOut'
             });
         }
 
-        // Nebula clouds
-        for (let i = 0; i < 5; i++) {
+        // Nebula clouds - themed colors
+        const nebulaCount = 3 + this.chapter;
+        for (let i = 0; i < nebulaCount; i++) {
             const nebula = this.add.circle(
-                Math.random() * 2560,
-                Math.random() * 1440,
-                Math.random() * 200 + 100,
-                Phaser.Display.Color.RandomRGB().color,
-                0.05
+                this.rng.between(0, this.worldWidth),
+                this.rng.between(0, this.worldHeight),
+                this.rng.between(100, 300),
+                theme.nebula,
+                0.04
             );
             nebula.setDepth(DEPTH.BACKGROUND + 2);
         }
@@ -218,22 +354,32 @@ export default class GameScene extends Phaser.Scene {
     createStars() {
         this.stars = this.physics.add.group();
 
+        // Use levelConfig for star counts
         const starConfigs = [
-            { color: 0xcd7f32, value: 10, count: 25, size: 12, name: 'bronze' },
-            { color: 0xc0c0c0, value: 25, count: 12, size: 14, name: 'silver' },
-            { color: 0xffd700, value: 50, count: 5, size: 18, name: 'gold' }
+            { color: 0xcd7f32, value: 10, count: this.levelConfig.bronzeStars, size: 12, name: 'bronze' },
+            { color: 0xc0c0c0, value: 25, count: this.levelConfig.silverStars, size: 14, name: 'silver' },
+            { color: 0xffd700, value: 50, count: this.levelConfig.goldStars, size: 18, name: 'gold' }
         ];
+
+        // Calculate safe spawn area (avoid edges and starting position)
+        const minX = 200;
+        const maxX = this.worldWidth - 200;
+        const minY = 150;
+        const maxY = this.worldHeight - 150;
 
         starConfigs.forEach(config => {
             for (let i = 0; i < config.count; i++) {
-                const x = Phaser.Math.Between(150, 2400);
-                const y = Phaser.Math.Between(150, 1300);
+                // Use seeded random for consistent level generation
+                const x = this.rng.between(minX, maxX);
+                const y = this.rng.between(minY, maxY);
                 this.createStar(x, y, config);
             }
         });
 
-        // Stellar core
-        this.createStellarCore(2400, 720);
+        // Stellar core - place in far corner of world
+        const coreX = this.worldWidth - 150;
+        const coreY = this.worldHeight / 2;
+        this.createStellarCore(coreX, coreY);
     }
 
     createStar(x, y, config) {
@@ -336,11 +482,20 @@ export default class GameScene extends Phaser.Scene {
     createObstacles() {
         this.obstacles = this.physics.add.group();
 
-        // Create asteroids
-        for (let i = 0; i < 15; i++) {
-            const x = Phaser.Math.Between(400, 2300);
-            const y = Phaser.Math.Between(100, 1300);
-            const size = Phaser.Math.Between(20, 50);
+        // Use levelConfig for asteroid count
+        const asteroidCount = this.levelConfig.asteroidCount;
+
+        // Calculate spawn area (avoid player starting zone)
+        const minX = 400;
+        const maxX = this.worldWidth - 100;
+        const minY = 100;
+        const maxY = this.worldHeight - 100;
+
+        for (let i = 0; i < asteroidCount; i++) {
+            // Use seeded random for consistent level generation
+            const x = this.rng.between(minX, maxX);
+            const y = this.rng.between(minY, maxY);
+            const size = this.rng.between(20, 50);
 
             this.createAsteroid(x, y, size);
         }
@@ -401,15 +556,30 @@ export default class GameScene extends Phaser.Scene {
     createEnemies() {
         this.enemyGroup = this.physics.add.group();
 
+        // Use levelConfig for enemy counts
+        const droneCount = this.levelConfig.droneCount;
+        const chaserCount = this.levelConfig.chaserCount;
+
+        // Calculate spawn area
+        const minX = 600;
+        const maxX = this.worldWidth - 200;
+        const minY = 200;
+        const maxY = this.worldHeight - 200;
+
         // Create patrol drones that move in patterns
-        for (let i = 0; i < 4; i++) {
-            const x = Phaser.Math.Between(600, 2200);
-            const y = Phaser.Math.Between(200, 1200);
+        for (let i = 0; i < droneCount; i++) {
+            const x = this.rng.between(minX, maxX);
+            const y = this.rng.between(minY, maxY);
             this.createPatrolDrone(x, y);
         }
 
-        // Create chaser enemy that hunts the player
-        this.createChaserEnemy(1500, 700);
+        // Create chaser enemies that hunt the player
+        for (let i = 0; i < chaserCount; i++) {
+            // Spread chasers across the world
+            const x = this.rng.between(this.worldWidth * 0.4, this.worldWidth * 0.8);
+            const y = this.rng.between(this.worldHeight * 0.3, this.worldHeight * 0.7);
+            this.createChaserEnemy(x, y);
+        }
     }
 
     createPatrolDrone(x, y) {
@@ -518,7 +688,9 @@ export default class GameScene extends Phaser.Scene {
 
         this.enemyGroup.add(chaser);
         this.enemies.push(chaser);
-        this.chaser = chaser;
+        // Track chasers in array for multi-chaser support
+        if (!this.chasers) this.chasers = [];
+        this.chasers.push(chaser);
     }
 
     startTimer() {
@@ -712,9 +884,11 @@ export default class GameScene extends Phaser.Scene {
         this.minimapPlayer = this.add.circle(mapX, mapY, 3, 0x00ffff);
         this.minimapPlayer.setScrollFactor(0).setDepth(DEPTH.UI + 1);
 
-        // Core marker
-        const coreX = mapX + (2400 / 2560) * mapSize;
-        const coreY = mapY + (720 / 1440) * mapSize;
+        // Core marker - use world size for accurate position
+        const coreWorldX = this.worldWidth - 150;
+        const coreWorldY = this.worldHeight / 2;
+        const coreX = mapX + (coreWorldX / this.worldWidth) * mapSize;
+        const coreY = mapY + (coreWorldY / this.worldHeight) * mapSize;
         this.add.circle(coreX, coreY, 4, 0xff00ff)
             .setScrollFactor(0).setDepth(DEPTH.UI + 1);
 
@@ -1153,21 +1327,25 @@ export default class GameScene extends Phaser.Scene {
     }
 
     updateEnemies() {
-        // Update chaser to follow player
-        if (this.chaser && this.chaser.body) {
-            const angle = Phaser.Math.Angle.Between(
-                this.chaser.x, this.chaser.y,
-                this.player.x, this.player.y
-            );
+        // Update all chasers to follow player
+        if (this.chasers && this.chasers.length > 0) {
+            this.chasers.forEach(chaser => {
+                if (chaser && chaser.body) {
+                    const angle = Phaser.Math.Angle.Between(
+                        chaser.x, chaser.y,
+                        this.player.x, this.player.y
+                    );
 
-            // Move towards player
-            this.chaser.body.setVelocity(
-                Math.cos(angle) * this.chaser.speed,
-                Math.sin(angle) * this.chaser.speed
-            );
+                    // Move towards player
+                    chaser.body.setVelocity(
+                        Math.cos(angle) * chaser.speed,
+                        Math.sin(angle) * chaser.speed
+                    );
 
-            // Rotate to face player
-            this.chaser.rotation = angle + Math.PI / 2;
+                    // Rotate to face player
+                    chaser.rotation = angle + Math.PI / 2;
+                }
+            });
         }
     }
 
@@ -1217,11 +1395,11 @@ export default class GameScene extends Phaser.Scene {
             this.engineGlow.setScale(0.8 + Math.random() * 0.4);
         }
 
-        // Update minimap
+        // Update minimap - use world size for accurate position
         if (this.minimapConfig) {
             const { x, y, size } = this.minimapConfig;
-            this.minimapPlayer.x = x + (this.player.x / 2560) * size;
-            this.minimapPlayer.y = y + (this.player.y / 1440) * size;
+            this.minimapPlayer.x = x + (this.player.x / this.worldWidth) * size;
+            this.minimapPlayer.y = y + (this.player.y / this.worldHeight) * size;
         }
 
         // Trail effect
