@@ -285,32 +285,43 @@ export default class EndlessScene extends Phaser.Scene {
         this.createTouchControls(width, height);
     }
 
-    createTouchControls(width, height) {
-        this.joystickBase = this.add.circle(120, height - 120, 60, 0xffffff, 0.15);
-        this.joystickBase.setScrollFactor(0).setDepth(DEPTH.UI);
-        this.joystickBase.setStrokeStyle(2, 0x00ffff, 0.5);
+    createTouchControls() {
+        // Get current screen dimensions
+        const screenWidth = this.cameras.main.width;
+        const screenHeight = this.cameras.main.height;
 
-        this.joystickThumb = this.add.circle(120, height - 120, 25, 0x00ffff, 0.4);
+        // Joystick size scales with screen
+        const joystickSize = Math.min(60, screenHeight * 0.12);
+        const thumbSize = joystickSize * 0.4;
+        const padding = joystickSize + 20;
+
+        // Virtual joystick area (bottom-left, scaled for screen)
+        this.joystickBase = this.add.circle(padding, screenHeight - padding, joystickSize, 0xffffff, 0.2);
+        this.joystickBase.setScrollFactor(0).setDepth(DEPTH.UI);
+        this.joystickBase.setStrokeStyle(3, 0x00ffff, 0.6);
+
+        this.joystickThumb = this.add.circle(padding, screenHeight - padding, thumbSize, 0x00ffff, 0.5);
         this.joystickThumb.setScrollFactor(0).setDepth(DEPTH.UI + 1);
 
         this.joystickActive = false;
-        this.joystickOrigin = { x: 120, y: height - 120 };
+        this.joystickOrigin = { x: padding, y: screenHeight - padding };
+        this.joystickMaxDist = joystickSize * 0.8;
 
-        // Use both pointer and touch events for better mobile support
+        // Touch handlers
         this.input.on('pointerdown', (pointer) => {
-            // Only activate joystick on left half of screen
-            if (pointer.x < width / 2) {
+            const currentWidth = this.cameras.main.width;
+            if (pointer.x < currentWidth / 2) {
                 this.joystickActive = true;
                 this.joystickOrigin = { x: pointer.x, y: pointer.y };
                 this.joystickBase.setPosition(pointer.x, pointer.y);
                 this.joystickThumb.setPosition(pointer.x, pointer.y);
-                this.joystickBase.setAlpha(0.3);
+                this.joystickBase.setAlpha(0.4);
             }
         });
 
         this.input.on('pointermove', (pointer) => {
             if (this.joystickActive && pointer.isDown) {
-                const maxDist = 50;
+                const maxDist = this.joystickMaxDist;
                 const dx = pointer.x - this.joystickOrigin.x;
                 const dy = pointer.y - this.joystickOrigin.y;
                 const dist = Math.min(maxDist, Math.sqrt(dx * dx + dy * dy));
@@ -325,10 +336,15 @@ export default class EndlessScene extends Phaser.Scene {
         });
 
         this.input.on('pointerup', () => {
-            this.joystickActive = false;
-            this.joystickVector.set(0, 0);
-            this.joystickThumb.setPosition(this.joystickBase.x, this.joystickBase.y);
-            this.joystickBase.setAlpha(0.15);
+            if (this.joystickActive) {
+                this.joystickActive = false;
+                this.joystickVector.set(0, 0);
+                const currentHeight = this.cameras.main.height;
+                const resetPadding = Math.min(60, currentHeight * 0.12) + 20;
+                this.joystickBase.setPosition(resetPadding, currentHeight - resetPadding);
+                this.joystickThumb.setPosition(resetPadding, currentHeight - resetPadding);
+                this.joystickBase.setAlpha(0.2);
+            }
         });
     }
 
