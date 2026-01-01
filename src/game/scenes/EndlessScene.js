@@ -280,33 +280,31 @@ export default class EndlessScene extends Phaser.Scene {
         // Joystick state (always initialize)
         this.joystickVector = new Phaser.Math.Vector2();
 
-        // Touch controls - use reliable touch detection
-        const isTouchDevice = ('ontouchstart' in window) ||
-                              (navigator.maxTouchPoints > 0) ||
-                              this.sys.game.device.input.touch;
-
-        if (isTouchDevice) {
-            this.createTouchControls(width, height);
-        }
+        // ALWAYS create touch controls - they work on both mobile and desktop
+        // and don't interfere with keyboard controls
+        this.createTouchControls(width, height);
     }
 
     createTouchControls(width, height) {
         this.joystickBase = this.add.circle(120, height - 120, 60, 0xffffff, 0.15);
-        this.joystickBase.setDepth(DEPTH.UI);
+        this.joystickBase.setScrollFactor(0).setDepth(DEPTH.UI);
         this.joystickBase.setStrokeStyle(2, 0x00ffff, 0.5);
 
         this.joystickThumb = this.add.circle(120, height - 120, 25, 0x00ffff, 0.4);
-        this.joystickThumb.setDepth(DEPTH.UI + 1);
+        this.joystickThumb.setScrollFactor(0).setDepth(DEPTH.UI + 1);
 
         this.joystickActive = false;
         this.joystickOrigin = { x: 120, y: height - 120 };
 
+        // Use both pointer and touch events for better mobile support
         this.input.on('pointerdown', (pointer) => {
+            // Only activate joystick on left half of screen
             if (pointer.x < width / 2) {
                 this.joystickActive = true;
                 this.joystickOrigin = { x: pointer.x, y: pointer.y };
                 this.joystickBase.setPosition(pointer.x, pointer.y);
                 this.joystickThumb.setPosition(pointer.x, pointer.y);
+                this.joystickBase.setAlpha(0.3);
             }
         });
 
@@ -330,6 +328,7 @@ export default class EndlessScene extends Phaser.Scene {
             this.joystickActive = false;
             this.joystickVector.set(0, 0);
             this.joystickThumb.setPosition(this.joystickBase.x, this.joystickBase.y);
+            this.joystickBase.setAlpha(0.15);
         });
     }
 

@@ -928,15 +928,9 @@ export default class GameScene extends Phaser.Scene {
         // Joystick state (always initialize)
         this.joystickVector = new Phaser.Math.Vector2();
 
-        // Always create touch controls (works on both mobile and desktop)
-        // Using more reliable touch detection
-        const isTouchDevice = ('ontouchstart' in window) ||
-                              (navigator.maxTouchPoints > 0) ||
-                              this.sys.game.device.input.touch;
-
-        if (isTouchDevice) {
-            this.createTouchControls(width, height);
-        }
+        // ALWAYS create touch controls - they work on both mobile and desktop
+        // and don't interfere with keyboard controls
+        this.createTouchControls(width, height);
     }
 
     createTouchControls(width, height) {
