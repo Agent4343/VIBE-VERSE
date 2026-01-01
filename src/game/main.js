@@ -20,6 +20,11 @@ import ShipSelectScene from './scenes/ShipSelectScene.js';
 import EndlessScene from './scenes/EndlessScene.js';
 import AchievementsScene from './scenes/AchievementsScene.js';
 
+// Fighting game scenes
+import FightMenuScene from '../fighting/scenes/FightMenuScene.js';
+import FighterSelectScene from '../fighting/scenes/FighterSelectScene.js';
+import FightScene from '../fighting/scenes/FightScene.js';
+
 // Configuration
 import { gameConfig } from './config/gameConfig.js';
 
@@ -41,7 +46,11 @@ function initGame() {
             AchievementsScene,  // Achievements & daily rewards
             LeaderboardScene,   // Online leaderboards
             SettingsScene,      // Options
-            PauseScene          // Pause overlay
+            PauseScene,         // Pause overlay
+            // Fighting game
+            FightMenuScene,     // Fighting game menu
+            FighterSelectScene, // Character selection
+            FightScene          // Main fight arena
         ]
     };
 

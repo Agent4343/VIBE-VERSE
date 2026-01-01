@@ -259,11 +259,11 @@ export default class MenuScene extends Phaser.Scene {
 
     createMenuButtons(centerX, centerY) {
         const buttonConfig = [
-            { text: '▶ PLAY', y: centerY - 20, callback: () => this.onPlay(), primary: true },
-            { text: '∞ ENDLESS', y: centerY + 50, callback: () => this.onEndless(), color: 0xff00ff },
-            { text: '📋 LEVELS', y: centerY + 110, callback: () => this.onLevels() },
-            { text: '🚀 SHIPS', y: centerY + 170, callback: () => this.onShips() },
-            { text: '🏆 ACHIEVEMENTS', y: centerY + 230, callback: () => this.onAchievements() }
+            { text: '▶ PLAY', y: centerY - 30, callback: () => this.onPlay(), primary: true },
+            { text: '∞ ENDLESS', y: centerY + 35, callback: () => this.onEndless(), color: 0xff00ff },
+            { text: '📋 LEVELS', y: centerY + 90, callback: () => this.onLevels() },
+            { text: '🚀 SHIPS', y: centerY + 145, callback: () => this.onShips() },
+            { text: '🥊 NEON FIGHTERS', y: centerY + 200, callback: () => this.onFighters(), color: 0x880044 }
         ];
 
         buttonConfig.forEach((config, index) => {
@@ -479,6 +479,10 @@ export default class MenuScene extends Phaser.Scene {
 
     onAchievements() {
         this.transitionTo('AchievementsScene');
+    }
+
+    onFighters() {
+        this.transitionTo('FightMenuScene');
     }
 
     transitionTo(sceneKey) {
