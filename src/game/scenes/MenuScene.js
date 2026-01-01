@@ -43,6 +43,9 @@ export default class MenuScene extends Phaser.Scene {
         // Create quick action buttons
         this.createQuickButtons(width, height);
 
+        // Weekly challenges panel
+        this.createChallengesPanel(width, height);
+
         // Daily reward notification
         this.checkDailyReward(width, height);
 
@@ -123,30 +126,135 @@ export default class MenuScene extends Phaser.Scene {
 
     createStatsBar(width) {
         const data = PlayerData.data;
-        const y = 185;
+        const rank = PlayerData.getRank();
+        const xpProgress = PlayerData.getXPProgress();
+        const y = 175;
+
+        // Rank badge (left side)
+        const rankBadge = this.add.container(80, y).setDepth(DEPTH.UI);
+
+        // Rank icon and name
+        this.add.text(0, 0, `${rank.icon} ${rank.name}`, {
+            fontFamily: 'Arial Black',
+            fontSize: '16px',
+            color: '#' + rank.color.toString(16).padStart(6, '0')
+        }).setOrigin(0, 0.5).setDepth(DEPTH.UI);
+
+        // XP Progress bar
+        const barWidth = 100;
+        const barHeight = 8;
+        const barY = y + 18;
+        const barX = 30;
+
+        // Background
+        this.add.rectangle(barX + barWidth/2, barY, barWidth, barHeight, 0x333333)
+            .setDepth(DEPTH.UI);
+
+        // Progress fill
+        const fillWidth = Math.max(4, barWidth * xpProgress.progress);
+        this.add.rectangle(barX + fillWidth/2, barY, fillWidth, barHeight - 2, rank.color)
+            .setDepth(DEPTH.UI + 1);
+
+        // XP text
+        const nextRank = PlayerData.getNextRank();
+        const xpText = nextRank ?
+            `${xpProgress.current}/${xpProgress.needed} XP` :
+            'MAX RANK';
+
+        this.add.text(barX + barWidth + 10, barY, xpText, {
+            fontFamily: 'Arial',
+            fontSize: '10px',
+            color: '#888888'
+        }).setOrigin(0, 0.5).setDepth(DEPTH.UI);
+
+        // Currency stats (right side)
+        const statsX = width - 80;
 
         // Coins
-        this.add.text(width / 2 - 120, y, `💰 ${data.coins}`, {
+        this.add.text(statsX, y - 10, `💰 ${data.coins}`, {
             fontFamily: 'Arial Black',
-            fontSize: '18px',
+            fontSize: '16px',
             color: '#ffd700'
-        }).setOrigin(0.5).setDepth(DEPTH.UI);
+        }).setOrigin(1, 0.5).setDepth(DEPTH.UI);
 
         // Stars
-        this.add.text(width / 2, y, `⭐ ${data.totalStarsCollected}`, {
+        this.add.text(statsX, y + 10, `⭐ ${data.totalStarsCollected}`, {
             fontFamily: 'Arial Black',
-            fontSize: '18px',
+            fontSize: '14px',
             color: '#ffff00'
-        }).setOrigin(0.5).setDepth(DEPTH.UI);
+        }).setOrigin(1, 0.5).setDepth(DEPTH.UI);
 
-        // Streak
-        if (data.currentStreak > 0) {
-            this.add.text(width / 2 + 120, y, `🔥 ${data.currentStreak}`, {
-                fontFamily: 'Arial Black',
-                fontSize: '18px',
+        // Streak (if active)
+        if (data.currentStreak > 1) {
+            this.add.text(statsX, y + 28, `🔥 ${data.currentStreak} day streak`, {
+                fontFamily: 'Arial',
+                fontSize: '12px',
                 color: '#ff6600'
-            }).setOrigin(0.5).setDepth(DEPTH.UI);
+            }).setOrigin(1, 0.5).setDepth(DEPTH.UI);
         }
+    }
+
+    createChallengesPanel(width, height) {
+        const challenges = PlayerData.getWeeklyChallenges();
+        if (!challenges || challenges.length === 0) return;
+
+        const panelX = 15;
+        const panelY = height - 160;
+        const panelWidth = 200;
+
+        // Panel background
+        const panel = this.add.rectangle(panelX + panelWidth/2, panelY + 60, panelWidth, 130, 0x000000, 0.5)
+            .setDepth(DEPTH.UI);
+        panel.setStrokeStyle(1, 0x00ffff, 0.5);
+
+        // Title
+        this.add.text(panelX + 10, panelY + 5, '📋 Weekly Challenges', {
+            fontFamily: 'Arial Black',
+            fontSize: '12px',
+            color: '#00ffff'
+        }).setDepth(DEPTH.UI + 1);
+
+        // Challenges list
+        challenges.forEach((challenge, i) => {
+            const cy = panelY + 30 + (i * 35);
+            const progress = PlayerData.getChallengeProgress(challenge.type);
+            const progressPercent = Math.min(1, progress / challenge.target);
+
+            // Challenge name
+            const statusIcon = challenge.completed ? '✅' : '⬜';
+            const nameColor = challenge.completed ? '#00ff00' : '#ffffff';
+
+            this.add.text(panelX + 10, cy, `${statusIcon} ${challenge.name}`, {
+                fontFamily: 'Arial',
+                fontSize: '11px',
+                color: nameColor
+            }).setDepth(DEPTH.UI + 1);
+
+            // Progress bar (if not completed)
+            if (!challenge.completed) {
+                const barWidth = 80;
+                const barX = panelX + panelWidth - barWidth - 10;
+
+                this.add.rectangle(barX + barWidth/2, cy + 12, barWidth, 6, 0x333333)
+                    .setDepth(DEPTH.UI + 1);
+
+                const fillWidth = Math.max(2, barWidth * progressPercent);
+                this.add.rectangle(barX + fillWidth/2, cy + 12, fillWidth, 4, 0x00ffff)
+                    .setDepth(DEPTH.UI + 2);
+
+                this.add.text(barX + barWidth + 5, cy + 12, `${progress}/${challenge.target}`, {
+                    fontFamily: 'Arial',
+                    fontSize: '9px',
+                    color: '#888888'
+                }).setOrigin(0, 0.5).setDepth(DEPTH.UI + 1);
+            } else {
+                this.add.text(panelX + panelWidth - 15, cy + 8, `+${challenge.xpReward}XP`, {
+                    fontFamily: 'Arial',
+                    fontSize: '10px',
+                    color: '#00ff00'
+                }).setOrigin(1, 0.5).setDepth(DEPTH.UI + 1);
+            }
+        });
     }
 
     createMenuButtons(centerX, centerY) {

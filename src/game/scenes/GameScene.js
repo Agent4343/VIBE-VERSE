@@ -12,6 +12,7 @@
 
 import Phaser from 'phaser';
 import { GAME_CONSTANTS, DEPTH } from '../config/gameConfig.js';
+import { PlayerData } from '../utils/PlayerData.js';
 
 export default class GameScene extends Phaser.Scene {
     constructor() {
@@ -41,6 +42,13 @@ export default class GameScene extends Phaser.Scene {
         this.timeLeft = this.levelConfig.timeLimit;
         this.enemies = [];
         this.chasers = [];
+
+        // Combo system
+        this.combo = 0;
+        this.comboTimer = null;
+        this.maxCombo = 0;
+        this.starsCollected = 0;
+        this.damageTaken = 0;
     }
 
     getLevelConfig() {
@@ -1049,24 +1057,50 @@ export default class GameScene extends Phaser.Scene {
         if (star.collected) return;
         star.collected = true;
 
+        // Update combo
+        this.combo++;
+        this.starsCollected++;
+        if (this.combo > this.maxCombo) {
+            this.maxCombo = this.combo;
+        }
+
+        // Reset combo timer
+        if (this.comboTimer) {
+            this.comboTimer.remove();
+        }
+        this.comboTimer = this.time.delayedCall(2000, () => {
+            this.combo = 0;
+            this.updateComboDisplay();
+        });
+
+        // Calculate combo bonus
+        const comboMultiplier = Math.min(this.combo, 10); // Max 10x combo
+        const comboBonus = Math.floor(star.value * (comboMultiplier - 1) * 0.5);
+        const totalValue = star.value + comboBonus;
+
         const session = this.registry.get('session');
-        session.score += star.value;
+        session.score += totalValue;
         this.registry.set('session', session);
 
         this.scoreText.setText(`Score: ${session.score}`);
         this.playSound('collect');
 
-        // Particles
+        // Update combo display
+        this.updateComboDisplay();
+
+        // Particles - more particles for higher combo
         const color = star.starColor || 0xff00ff;
         this.collectParticles.setPosition(star.x, star.y);
         this.collectParticles.setParticleTint(color);
-        this.collectParticles.explode(20);
+        this.collectParticles.explode(15 + this.combo * 2);
 
-        // Floating text
-        const floatText = this.add.text(star.x, star.y, `+${star.value}`, {
+        // Floating text with combo info
+        const comboText = this.combo > 1 ? ` x${this.combo}` : '';
+        const bonusText = comboBonus > 0 ? ` (+${comboBonus})` : '';
+        const floatText = this.add.text(star.x, star.y, `+${star.value}${bonusText}${comboText}`, {
             fontFamily: 'Arial Black',
-            fontSize: '28px',
-            color: '#ffffff',
+            fontSize: this.combo > 1 ? '32px' : '28px',
+            color: this.combo > 5 ? '#ffff00' : (this.combo > 1 ? '#00ffff' : '#ffffff'),
             stroke: '#000000',
             strokeThickness: 3
         }).setOrigin(0.5).setDepth(DEPTH.EFFECTS);
@@ -1081,10 +1115,10 @@ export default class GameScene extends Phaser.Scene {
             onComplete: () => floatText.destroy()
         });
 
-        // Score pop
+        // Score pop - bigger for combos
         this.tweens.add({
             targets: this.scoreText,
-            scale: { from: 1.3, to: 1 },
+            scale: { from: 1.3 + (this.combo * 0.05), to: 1 },
             duration: 200,
             ease: 'Back.out'
         });
@@ -1105,12 +1139,47 @@ export default class GameScene extends Phaser.Scene {
         });
     }
 
+    updateComboDisplay() {
+        // Create combo display if it doesn't exist
+        if (!this.comboText) {
+            this.comboText = this.add.text(this.cameras.main.width / 2, 60, '', {
+                fontFamily: 'Arial Black',
+                fontSize: '24px',
+                color: '#00ffff',
+                stroke: '#000000',
+                strokeThickness: 3
+            }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH.UI);
+        }
+
+        if (this.combo > 1) {
+            const color = this.combo >= 10 ? '#ff00ff' : (this.combo >= 5 ? '#ffff00' : '#00ffff');
+            this.comboText.setText(`${this.combo}x COMBO!`);
+            this.comboText.setColor(color);
+            this.comboText.setAlpha(1);
+
+            // Pulse animation
+            this.tweens.add({
+                targets: this.comboText,
+                scale: { from: 1.2, to: 1 },
+                duration: 150,
+                ease: 'Back.out'
+            });
+        } else {
+            this.comboText.setAlpha(0);
+        }
+    }
+
     hitObstacle(player, obstacle) {
         if (this.player.isInvincible || this.isComplete) return;
 
         this.playerHealth--;
+        this.damageTaken++;
         this.updateHealthDisplay();
         this.playSound('hit');
+
+        // Reset combo on hit
+        this.combo = 0;
+        this.updateComboDisplay();
 
         // Screen shake
         this.cameras.main.shake(300, 0.02);
@@ -1324,6 +1393,38 @@ export default class GameScene extends Phaser.Scene {
     }
 
     updateProgress() {
+        const session = this.registry.get('session');
+        const completionTime = (Date.now() - session.startTime) / 1000;
+
+        // Use PlayerData for persistent storage
+        PlayerData.completeLevel(
+            this.chapter,
+            this.level,
+            session.score,
+            this.timeLeft,
+            this.damageTaken,
+            completionTime
+        );
+
+        // Track stars collected
+        PlayerData.addStarsCollected(this.starsCollected);
+
+        // Track max combo
+        if (this.maxCombo > 0) {
+            PlayerData.updateHighestCombo(this.maxCombo);
+        }
+
+        // Check close call achievement (1 health remaining)
+        if (this.playerHealth === 1 && this.damageTaken > 0) {
+            PlayerData.unlockAchievement('close_call');
+        }
+
+        // Check comeback kid achievement (won after losing 2+ lives)
+        if (this.damageTaken >= 2) {
+            PlayerData.unlockAchievement('comeback_kid');
+        }
+
+        // Legacy registry support
         const progress = this.registry.get('playerProgress') || {
             currentChapter: 1,
             currentLevel: 1,
@@ -1332,8 +1433,6 @@ export default class GameScene extends Phaser.Scene {
             achievements: []
         };
 
-        // Add score to total stars (simplified: 1 star per 100 points)
-        const session = this.registry.get('session');
         const starsEarned = Math.floor(session.score / 100) + 1;
         progress.totalStars += starsEarned;
 
