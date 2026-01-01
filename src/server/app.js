@@ -22,6 +22,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// Trust proxy (required for Railway/cloud deployments behind reverse proxy)
+app.set('trust proxy', 1);
+
 // ========================================
 // Security Middleware
 // ========================================
