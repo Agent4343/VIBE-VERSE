@@ -8,11 +8,13 @@
 import http from 'http';
 import app from './app.js';
 import { initializeSocket } from './socket/index.js';
-import { sequelize } from './models/index.js';
 
 // Configuration
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
+
+// Database availability flag
+let dbAvailable = false;
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -24,21 +26,45 @@ const io = initializeSocket(server);
 app.set('io', io);
 
 /**
- * Start server after database connection
+ * Try to connect to database (optional)
  */
-async function startServer() {
+async function connectDatabase() {
+    // Only try if DATABASE_URL is set
+    if (!process.env.DATABASE_URL) {
+        console.log('DATABASE_URL not set - running without database');
+        return false;
+    }
+
     try {
-        // Test database connection
+        const { sequelize } = await import('./models/index.js');
         await sequelize.authenticate();
         console.log('Database connection established successfully.');
 
-        // Sync models (in development only)
+        // Sync models in development
         if (process.env.NODE_ENV === 'development') {
             await sequelize.sync({ alter: true });
             console.log('Database models synchronized.');
         }
 
-        // Start listening
+        app.set('sequelize', sequelize);
+        return true;
+    } catch (error) {
+        console.warn('Database connection failed:', error.message);
+        console.log('Running in degraded mode without database');
+        return false;
+    }
+}
+
+/**
+ * Start server (database optional)
+ */
+async function startServer() {
+    try {
+        // Try database connection (non-blocking)
+        dbAvailable = await connectDatabase();
+        app.set('dbAvailable', dbAvailable);
+
+        // Start listening regardless of database
         server.listen(PORT, HOST, () => {
             console.log(`
 ╔═══════════════════════════════════════════════════════╗
@@ -46,7 +72,8 @@ async function startServer() {
 ║   🚀 Cosmic Cadet Academy Server                      ║
 ║                                                       ║
 ║   Server:    http://${HOST}:${PORT}                     ║
-║   Env:       ${process.env.NODE_ENV || 'development'}                          ║
+║   Env:       ${process.env.NODE_ENV || 'production'}                          ║
+║   Database:  ${dbAvailable ? 'Connected' : 'Not available'}                        ║
 ║   Socket.IO: Enabled                                  ║
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
@@ -69,12 +96,15 @@ async function gracefulShutdown(signal) {
     server.close(async () => {
         console.log('HTTP server closed.');
 
-        // Close database connection
-        try {
-            await sequelize.close();
-            console.log('Database connection closed.');
-        } catch (error) {
-            console.error('Error closing database:', error);
+        // Close database connection if available
+        const sequelize = app.get('sequelize');
+        if (sequelize) {
+            try {
+                await sequelize.close();
+                console.log('Database connection closed.');
+            } catch (error) {
+                console.error('Error closing database:', error);
+            }
         }
 
         process.exit(0);
