@@ -50,7 +50,7 @@ export default class MenuScene extends Phaser.Scene {
         this.checkDailyReward(width, height);
 
         // Version text
-        this.add.text(10, height - 30, 'v2.4.1', {
+        this.add.text(10, height - 30, 'v2.4.2', {
             fontFamily: 'Arial',
             fontSize: '14px',
             color: '#444444'

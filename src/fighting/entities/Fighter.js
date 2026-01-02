@@ -517,6 +517,10 @@ export default class Fighter {
 
     updateFacing() {
         this.container.scaleX = this.facing;
+        // Keep name label readable when flipped
+        if (this.nameLabel) {
+            this.nameLabel.scaleX = this.facing;
+        }
     }
 
     faceOpponent(opponentX) {
