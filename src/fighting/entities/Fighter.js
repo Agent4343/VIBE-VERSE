@@ -60,21 +60,22 @@ export default class Fighter {
 
         // Get appearance settings with fallbacks
         const skin = cfg.skinTone || 0xd4a574;
-        const skinDark = cfg.skinShadow || 0xb08060;
+        const skinDark = cfg.skinShadow || Phaser.Display.Color.ValueToColor(skin).darken(25).color;
+        const skinLight = cfg.skinHighlight || Phaser.Display.Color.ValueToColor(skin).lighten(15).color;
         const hairCol = cfg.hairColor || 0x222222;
         const topCol = cfg.outfitTop || cfg.color || 0xcc0000;
+        const topDark = Phaser.Display.Color.ValueToColor(topCol).darken(30).color;
         const bottomCol = cfg.outfitBottom || 0x222222;
         const gloveCol = cfg.gloveColor || cfg.accentColor || 0xff0000;
         const bootCol = cfg.bootColor || 0x111111;
         const outlineCol = 0x000000;
-        const outlineW = 3;
 
         // Ground shadow
-        this.shadow = this.scene.add.ellipse(0, 75, 80, 20, 0x000000, 0.4);
+        this.shadow = this.scene.add.ellipse(0, 75, 70, 18, 0x000000, 0.35);
         this.container.add(this.shadow);
 
         // Subtle energy aura
-        this.glow = this.scene.add.circle(0, -20, 70, cfg.color, 0.15);
+        this.glow = this.scene.add.circle(0, -30, 65, cfg.color, 0.12);
         this.container.add(this.glow);
 
         // Main graphics object
@@ -82,160 +83,221 @@ export default class Fighter {
         this.container.add(this.bodyGfx);
         const g = this.bodyGfx;
 
-        // ========== LEGS ==========
-        // Left leg outline
-        g.lineStyle(outlineW, outlineCol, 1);
+        // ========== LEGS (Back leg first for depth) ==========
+        // Right thigh (back)
         g.fillStyle(bottomCol, 1);
-        g.fillRoundedRect(-22, 5, 20, 30, 6);
-        g.strokeRoundedRect(-22, 5, 20, 30, 6);
-
-        // Left leg skin (lower)
+        this.drawLimb(g, 8, 8, 16, 32, 8); // thigh
         g.fillStyle(skin, 1);
-        g.fillRoundedRect(-20, 30, 16, 25, 5);
-        g.strokeRoundedRect(-20, 30, 16, 25, 5);
-
-        // Left boot
+        this.drawLimb(g, 10, 38, 14, 22, 6); // calf
+        // Boot
         g.fillStyle(bootCol, 1);
-        g.fillRoundedRect(-22, 52, 20, 20, 6);
-        g.strokeRoundedRect(-22, 52, 20, 20, 6);
-        g.fillStyle(0xffffff, 0.2);
-        g.fillRoundedRect(-18, 55, 6, 12, 3);
+        g.fillRoundedRect(4, 58, 20, 14, 4);
+        g.fillStyle(0xffffff, 0.15);
+        g.fillRoundedRect(6, 60, 6, 8, 2);
 
-        // Right leg outline
+        // Left thigh (front)
         g.fillStyle(bottomCol, 1);
-        g.fillRoundedRect(2, 5, 20, 30, 6);
-        g.strokeRoundedRect(2, 5, 20, 30, 6);
-
-        // Right leg skin (lower)
+        this.drawLimb(g, -24, 8, 16, 32, 8);
         g.fillStyle(skin, 1);
-        g.fillRoundedRect(4, 30, 16, 25, 5);
-        g.strokeRoundedRect(4, 30, 16, 25, 5);
-
-        // Right boot
+        this.drawLimb(g, -22, 38, 14, 22, 6);
+        // Calf shading
+        g.fillStyle(skinDark, 0.3);
+        g.fillRoundedRect(-20, 42, 4, 14, 2);
+        // Boot
         g.fillStyle(bootCol, 1);
-        g.fillRoundedRect(2, 52, 20, 20, 6);
-        g.strokeRoundedRect(2, 52, 20, 20, 6);
-        g.fillStyle(0xffffff, 0.2);
-        g.fillRoundedRect(6, 55, 6, 12, 3);
+        g.fillRoundedRect(-26, 58, 20, 14, 4);
+        g.fillStyle(0xffffff, 0.15);
+        g.fillRoundedRect(-24, 60, 6, 8, 2);
 
         // ========== TORSO ==========
-        // Main body
+        // Core body shape - trapezoid torso for athletic look
         g.fillStyle(topCol, 1);
-        g.fillRoundedRect(-28, -50, 56, 60, 10);
-        g.strokeRoundedRect(-28, -50, 56, 60, 10);
+        g.beginPath();
+        g.moveTo(-24, -48); // top left (shoulders)
+        g.lineTo(24, -48);  // top right
+        g.lineTo(20, 12);   // bottom right (waist)
+        g.lineTo(-20, 12);  // bottom left
+        g.closePath();
+        g.fill();
 
-        // Shirt shading (right side darker)
-        g.fillStyle(0x000000, 0.2);
-        g.fillRoundedRect(5, -48, 20, 55, 8);
+        // Chest definition
+        g.fillStyle(topDark, 0.4);
+        g.fillEllipse(12, -32, 14, 18);
+        g.fillStyle(0xffffff, 0.1);
+        g.fillEllipse(-10, -36, 12, 14);
 
-        // Shirt highlight (left side)
-        g.fillStyle(0xffffff, 0.15);
-        g.fillRoundedRect(-24, -45, 12, 40, 5);
+        // Abs suggestion (for tank top/tight shirt)
+        g.fillStyle(topDark, 0.15);
+        g.fillRoundedRect(-8, -20, 16, 28, 4);
+        g.lineStyle(1, topDark, 0.2);
+        g.lineBetween(-6, -12, 6, -12);
+        g.lineBetween(-6, -2, 6, -2);
 
-        // Belt
+        // Collar/neckline
+        g.fillStyle(skin, 1);
+        g.fillEllipse(0, -48, 16, 8);
+
+        // Belt/waistband
         g.fillStyle(0x1a1a1a, 1);
-        g.fillRect(-26, 2, 52, 8);
-        g.strokeRect(-26, 2, 52, 8);
-        // Belt buckle
-        g.fillStyle(cfg.accentColor || 0xffcc00, 1);
-        g.fillRoundedRect(-8, 3, 16, 6, 2);
+        g.fillRoundedRect(-20, 6, 40, 8, 2);
+        g.fillStyle(cfg.accentColor || 0xccaa00, 1);
+        g.fillRoundedRect(-6, 7, 12, 6, 2);
 
         // ========== ARMS ==========
-        // Left arm (behind torso)
+        // Left arm (back) - upper arm
         g.fillStyle(skin, 1);
-        g.fillRoundedRect(-45, -45, 18, 45, 8);
-        g.strokeRoundedRect(-45, -45, 18, 45, 8);
-        g.fillStyle(skinDark, 0.3);
-        g.fillRoundedRect(-43, -40, 5, 35, 3);
-
-        // Left glove
+        this.drawLimb(g, -42, -44, 14, 28, 7);
+        // Forearm
+        this.drawLimb(g, -44, -18, 12, 24, 6);
+        // Muscle shading
+        g.fillStyle(skinDark, 0.25);
+        g.fillEllipse(-36, -36, 5, 10);
+        // Left glove/hand
         g.fillStyle(gloveCol, 1);
-        g.fillRoundedRect(-47, -5, 22, 25, 10);
-        g.strokeRoundedRect(-47, -5, 22, 25, 10);
+        g.fillCircle(-38, 8, 12);
+        g.fillRoundedRect(-46, 2, 16, 18, 6);
         g.fillStyle(0xffffff, 0.2);
-        g.fillRoundedRect(-43, -2, 6, 18, 4);
+        g.fillCircle(-42, 6, 4);
 
-        // Right arm
+        // Right arm (front) - upper arm with bicep
         g.fillStyle(skin, 1);
-        g.fillRoundedRect(27, -45, 18, 45, 8);
-        g.strokeRoundedRect(27, -45, 18, 45, 8);
-        g.fillStyle(skinDark, 0.3);
-        g.fillRoundedRect(38, -40, 5, 35, 3);
-
-        // Right glove
+        this.drawLimb(g, 28, -44, 14, 28, 7);
+        // Bicep highlight
+        g.fillStyle(skinLight, 0.3);
+        g.fillEllipse(34, -36, 5, 8);
+        // Forearm
+        g.fillStyle(skin, 1);
+        this.drawLimb(g, 32, -18, 12, 24, 6);
+        // Forearm definition
+        g.fillStyle(skinDark, 0.2);
+        g.fillEllipse(40, -10, 4, 10);
+        // Right glove/hand
         g.fillStyle(gloveCol, 1);
-        g.fillRoundedRect(25, -5, 22, 25, 10);
-        g.strokeRoundedRect(25, -5, 22, 25, 10);
+        g.fillCircle(38, 8, 12);
+        g.fillRoundedRect(30, 2, 16, 18, 6);
         g.fillStyle(0xffffff, 0.2);
-        g.fillRoundedRect(29, -2, 6, 18, 4);
+        g.fillCircle(34, 6, 4);
+
+        // ========== NECK ==========
+        g.fillStyle(skin, 1);
+        g.fillRoundedRect(-8, -58, 16, 14, 4);
+        // Neck shading
+        g.fillStyle(skinDark, 0.2);
+        g.fillRoundedRect(2, -56, 5, 10, 2);
 
         // ========== HEAD ==========
-        // Neck
+        // Head shape - slightly oval for more human look
         g.fillStyle(skin, 1);
-        g.fillRoundedRect(-10, -60, 20, 15, 5);
+        g.fillEllipse(0, -78, 24, 28);
 
-        // Head base
-        g.fillStyle(skin, 1);
-        g.fillCircle(0, -80, 28);
-        g.lineStyle(outlineW, outlineCol, 1);
-        g.strokeCircle(0, -80, 28);
+        // Jaw definition
+        g.fillStyle(skinDark, 0.15);
+        g.fillEllipse(8, -68, 12, 10);
 
-        // Face shading
-        g.fillStyle(skinDark, 0.25);
-        g.fillCircle(8, -78, 15);
+        // Cheek highlight
+        g.fillStyle(skinLight, 0.2);
+        g.fillCircle(-10, -76, 8);
 
         // ========== FACE ==========
-        // Eyes
+        // Eyes - more almond shaped
         g.fillStyle(0xffffff, 1);
-        g.fillEllipse(-10, -82, 10, 8);
-        g.fillEllipse(10, -82, 10, 8);
-        g.lineStyle(2, outlineCol, 1);
-        g.strokeEllipse(-10, -82, 10, 8);
-        g.strokeEllipse(10, -82, 10, 8);
+        g.fillEllipse(-9, -80, 8, 5);
+        g.fillEllipse(9, -80, 8, 5);
+
+        // Iris
+        const lookDir = this.isPlayer1 ? 1 : -1;
+        g.fillStyle(cfg.eyeColor || 0x553322, 1);
+        g.fillCircle(-9 + lookDir, -80, 3.5);
+        g.fillCircle(9 + lookDir, -80, 3.5);
 
         // Pupils
-        const lookDir = this.isPlayer1 ? 2 : -2;
-        g.fillStyle(cfg.eyeColor || 0x442200, 1);
-        g.fillCircle(-10 + lookDir, -82, 5);
-        g.fillCircle(10 + lookDir, -82, 5);
         g.fillStyle(0x000000, 1);
-        g.fillCircle(-10 + lookDir, -82, 2.5);
-        g.fillCircle(10 + lookDir, -82, 2.5);
+        g.fillCircle(-9 + lookDir, -80, 1.8);
+        g.fillCircle(9 + lookDir, -80, 1.8);
 
         // Eye shine
         g.fillStyle(0xffffff, 0.9);
-        g.fillCircle(-12 + lookDir, -84, 2);
-        g.fillCircle(8 + lookDir, -84, 2);
+        g.fillCircle(-10 + lookDir, -81, 1.2);
+        g.fillCircle(8 + lookDir, -81, 1.2);
 
-        // Eyebrows (determined expression)
+        // Eyelids/lashes (subtle)
+        g.lineStyle(1.5, skinDark, 0.6);
+        g.beginPath();
+        g.arc(-9, -80, 6, -2.8, -0.3, false);
+        g.stroke();
+        g.beginPath();
+        g.arc(9, -80, 6, -2.8, -0.3, false);
+        g.stroke();
+
+        // Eyebrows - more natural curve
         g.fillStyle(hairCol, 1);
-        g.fillRoundedRect(-18, -95, 16, 4, 2);
-        g.fillRoundedRect(2, -95, 16, 4, 2);
+        g.beginPath();
+        g.moveTo(-16, -88);
+        g.lineTo(-14, -90);
+        g.lineTo(-4, -88);
+        g.lineTo(-5, -86);
+        g.closePath();
+        g.fill();
+        g.beginPath();
+        g.moveTo(16, -88);
+        g.lineTo(14, -90);
+        g.lineTo(4, -88);
+        g.lineTo(5, -86);
+        g.closePath();
+        g.fill();
 
-        // Nose
+        // Nose - more defined
+        g.fillStyle(skinDark, 0.35);
+        g.beginPath();
+        g.moveTo(0, -76);
+        g.lineTo(-3, -68);
+        g.lineTo(0, -66);
+        g.lineTo(3, -68);
+        g.closePath();
+        g.fill();
+        // Nostril hints
         g.fillStyle(skinDark, 0.5);
-        g.fillTriangle(0, -75, -4, -68, 4, -68);
+        g.fillCircle(-2, -67, 1);
+        g.fillCircle(2, -67, 1);
 
-        // Mouth (determined line)
-        g.lineStyle(3, 0x884444, 0.8);
-        g.lineBetween(-8, -62, 8, -62);
+        // Mouth - natural lips
+        g.fillStyle(0x994455, 0.8);
+        g.fillEllipse(0, -60, 8, 3);
+        // Upper lip line
+        g.lineStyle(1, 0x773344, 0.6);
+        g.lineBetween(-6, -61, 6, -61);
+        // Lower lip highlight
+        g.fillStyle(0xbb6677, 0.4);
+        g.fillEllipse(0, -59, 5, 2);
+
+        // Ears (simple)
+        g.fillStyle(skin, 1);
+        g.fillEllipse(-22, -78, 4, 8);
+        g.fillEllipse(22, -78, 4, 8);
+        g.fillStyle(skinDark, 0.3);
+        g.fillCircle(-22, -78, 2);
+        g.fillCircle(22, -78, 2);
 
         // ========== HAIR ==========
-        this.drawHairStyle(g, hairCol, cfg, outlineCol, outlineW);
+        this.drawHumanHairStyle(g, hairCol, cfg);
+
+        // Head outline (subtle)
+        g.lineStyle(1, outlineCol, 0.3);
+        g.strokeEllipse(0, -78, 24, 28);
 
         // Attack glow effects (hidden by default)
-        this.fistGlow = this.scene.add.circle(40, 0, 20, cfg.accentColor, 0);
-        this.footGlow = this.scene.add.circle(15, 60, 22, cfg.accentColor, 0);
+        this.fistGlow = this.scene.add.circle(40, 5, 18, cfg.accentColor, 0);
+        this.footGlow = this.scene.add.circle(15, 60, 20, cfg.accentColor, 0);
         this.container.add(this.fistGlow);
         this.container.add(this.footGlow);
 
         // Name label
-        this.nameLabel = this.scene.add.text(0, -125, cfg.name, {
+        this.nameLabel = this.scene.add.text(0, -120, cfg.name, {
             fontFamily: 'Arial Black',
-            fontSize: '16px',
+            fontSize: '14px',
             color: '#ffffff',
             stroke: '#000000',
-            strokeThickness: 4
+            strokeThickness: 3
         }).setOrigin(0.5);
         this.container.add(this.nameLabel);
 
@@ -251,120 +313,193 @@ export default class Fighter {
         // Breathing animation
         this.scene.tweens.add({
             targets: this.glow,
-            alpha: { from: 0.15, to: 0.25 },
-            scale: { from: 1, to: 1.1 },
-            duration: 1500,
+            alpha: { from: 0.12, to: 0.2 },
+            scale: { from: 1, to: 1.08 },
+            duration: 1800,
             yoyo: true,
             repeat: -1,
             ease: 'Sine.inOut'
         });
     }
 
-    drawHairStyle(g, hairCol, cfg, outlineCol, outlineW) {
+    // Helper to draw tapered limbs
+    drawLimb(g, x, y, width, height, radius) {
+        g.fillRoundedRect(x, y, width, height, radius);
+    }
+
+    drawHumanHairStyle(g, hairCol, cfg) {
         const style = cfg.hairStyle || 'short_spiky';
 
-        // Calculate highlight
+        // Calculate highlight color
         const hc = Phaser.Display.Color.ValueToColor(hairCol);
         const highlight = Phaser.Display.Color.GetColor(
-            Math.min(255, hc.r + 60),
-            Math.min(255, hc.g + 60),
-            Math.min(255, hc.b + 60)
+            Math.min(255, hc.r + 50),
+            Math.min(255, hc.g + 50),
+            Math.min(255, hc.b + 50)
         );
-
-        g.lineStyle(outlineW, outlineCol, 1);
+        const shadow = Phaser.Display.Color.GetColor(
+            Math.max(0, hc.r - 40),
+            Math.max(0, hc.g - 40),
+            Math.max(0, hc.b - 40)
+        );
 
         switch (style) {
             case 'short_spiky':
-                // Base hair
+                // Base hair volume
                 g.fillStyle(hairCol, 1);
-                g.fillCircle(0, -95, 22);
-                g.strokeCircle(0, -95, 22);
-
-                // Spikes
-                for (let i = -15; i <= 15; i += 10) {
-                    g.fillStyle(hairCol, 1);
-                    g.fillTriangle(i, -115, i - 8, -95, i + 8, -95);
-                    g.lineStyle(outlineW, outlineCol, 1);
-                    g.strokeTriangle(i, -115, i - 8, -95, i + 8, -95);
-                }
-
+                g.fillEllipse(0, -95, 22, 16);
+                // Side hair
+                g.fillEllipse(-18, -85, 8, 12);
+                g.fillEllipse(18, -85, 8, 12);
+                // Spiky top
+                g.beginPath();
+                g.moveTo(-12, -105);
+                g.lineTo(-8, -95);
+                g.lineTo(-4, -108);
+                g.lineTo(0, -96);
+                g.lineTo(4, -106);
+                g.lineTo(8, -95);
+                g.lineTo(12, -104);
+                g.lineTo(10, -92);
+                g.lineTo(-10, -92);
+                g.closePath();
+                g.fill();
                 // Highlight
-                g.fillStyle(highlight, 0.4);
-                g.fillCircle(-8, -100, 8);
+                g.fillStyle(highlight, 0.3);
+                g.fillEllipse(-6, -98, 8, 6);
+                // Shadow
+                g.fillStyle(shadow, 0.3);
+                g.fillEllipse(8, -92, 10, 8);
                 break;
 
             case 'long_flowing':
+                // Main hair mass
                 g.fillStyle(hairCol, 1);
-                // Top
-                g.fillCircle(0, -95, 25);
-                g.strokeCircle(0, -95, 25);
-                // Sides flowing down
-                g.fillRoundedRect(-30, -100, 18, 60, 8);
-                g.strokeRoundedRect(-30, -100, 18, 60, 8);
-                g.fillRoundedRect(12, -100, 18, 60, 8);
-                g.strokeRoundedRect(12, -100, 18, 60, 8);
-                // Back
-                g.fillRoundedRect(-22, -90, 44, 50, 10);
-                // Highlight
-                g.fillStyle(highlight, 0.3);
-                g.fillCircle(-10, -105, 10);
+                g.fillEllipse(0, -95, 26, 18);
+                // Flowing sides
+                g.beginPath();
+                g.moveTo(-24, -90);
+                g.bezierCurveTo(-28, -70, -26, -50, -22, -35);
+                g.lineTo(-18, -35);
+                g.bezierCurveTo(-20, -55, -22, -75, -18, -88);
+                g.closePath();
+                g.fill();
+                g.beginPath();
+                g.moveTo(24, -90);
+                g.bezierCurveTo(28, -70, 26, -50, 22, -35);
+                g.lineTo(18, -35);
+                g.bezierCurveTo(20, -55, 22, -75, 18, -88);
+                g.closePath();
+                g.fill();
+                // Back hair
+                g.fillRoundedRect(-18, -92, 36, 40, 10);
+                // Highlights
+                g.fillStyle(highlight, 0.25);
+                g.fillEllipse(-10, -100, 10, 8);
+                g.fillStyle(shadow, 0.2);
+                g.fillEllipse(10, -88, 12, 10);
                 break;
 
             case 'hooded':
                 const hoodCol = cfg.outfitTop || 0x1a0030;
-                g.fillStyle(hoodCol, 1);
+                const hoodDark = Phaser.Display.Color.ValueToColor(hoodCol).darken(30).color;
                 // Hood shape
-                g.fillCircle(0, -90, 35);
-                g.strokeCircle(0, -90, 35);
-                g.fillRoundedRect(-35, -95, 70, 45, 12);
-                g.strokeRoundedRect(-35, -95, 70, 45, 12);
-                // Hood peak
-                g.fillTriangle(0, -130, -22, -95, 22, -95);
-                g.strokeTriangle(0, -130, -22, -95, 22, -95);
-                // Dark inside
+                g.fillStyle(hoodCol, 1);
+                g.beginPath();
+                g.moveTo(-26, -60);
+                g.bezierCurveTo(-30, -90, -20, -110, 0, -115);
+                g.bezierCurveTo(20, -110, 30, -90, 26, -60);
+                g.lineTo(20, -55);
+                g.bezierCurveTo(16, -85, 10, -100, 0, -102);
+                g.bezierCurveTo(-10, -100, -16, -85, -20, -55);
+                g.closePath();
+                g.fill();
+                // Hood shadow inside
                 g.fillStyle(0x000000, 0.5);
-                g.fillCircle(0, -80, 22);
+                g.fillEllipse(0, -75, 18, 16);
+                // Hood folds
+                g.fillStyle(hoodDark, 0.4);
+                g.beginPath();
+                g.moveTo(-22, -70);
+                g.lineTo(-18, -95);
+                g.lineTo(-14, -70);
+                g.closePath();
+                g.fill();
+                g.beginPath();
+                g.moveTo(22, -70);
+                g.lineTo(18, -95);
+                g.lineTo(14, -70);
+                g.closePath();
+                g.fill();
                 break;
 
             case 'bald':
-                // Just a shiny head highlight
-                g.fillStyle(0xffffff, 0.25);
-                g.fillCircle(-8, -95, 10);
+                // Shiny head highlights
+                g.fillStyle(0xffffff, 0.2);
+                g.fillEllipse(-8, -92, 10, 8);
+                g.fillStyle(0xffffff, 0.1);
+                g.fillEllipse(6, -88, 6, 5);
                 break;
 
             case 'ponytail':
+                // Top hair
                 g.fillStyle(hairCol, 1);
-                // Top
-                g.fillCircle(0, -95, 22);
-                g.strokeCircle(0, -95, 22);
-                // Ponytail going back
-                g.fillRoundedRect(-8, -100, 16, 55, 8);
-                g.strokeRoundedRect(-8, -100, 16, 55, 8);
+                g.fillEllipse(0, -95, 22, 14);
+                // Ponytail
+                g.beginPath();
+                g.moveTo(-6, -90);
+                g.bezierCurveTo(-8, -80, -6, -60, 0, -40);
+                g.bezierCurveTo(6, -60, 8, -80, 6, -90);
+                g.closePath();
+                g.fill();
                 // Hair tie
-                g.fillStyle(cfg.accentColor || 0x00aa00, 1);
-                g.fillRect(-8, -90, 16, 6);
+                g.fillStyle(cfg.accentColor || 0xff0066, 1);
+                g.fillEllipse(0, -88, 8, 4);
                 // Highlight
                 g.fillStyle(highlight, 0.3);
-                g.fillCircle(-8, -100, 8);
+                g.fillEllipse(-6, -98, 8, 5);
                 break;
 
             case 'long_wavy':
                 g.fillStyle(hairCol, 1);
-                // Top
-                g.fillCircle(0, -95, 26);
-                g.strokeCircle(0, -95, 26);
-                // Wavy sides
-                for (let y = -90; y < -40; y += 12) {
-                    const wave = Math.sin((y + 90) * 0.15) * 5;
-                    g.fillCircle(-25 + wave, y, 10);
-                    g.fillCircle(25 - wave, y, 10);
+                // Top volume
+                g.fillEllipse(0, -95, 24, 16);
+                // Wavy sides with curves
+                for (let side = -1; side <= 1; side += 2) {
+                    g.beginPath();
+                    g.moveTo(side * 22, -88);
+                    for (let y = -80; y < -40; y += 10) {
+                        const wave = Math.sin((y + 80) * 0.2) * 4;
+                        g.lineTo(side * (22 + wave), y);
+                    }
+                    g.lineTo(side * 18, -40);
+                    for (let y = -40; y > -80; y -= 10) {
+                        const wave = Math.sin((y + 80) * 0.2) * 2;
+                        g.lineTo(side * (16 + wave), y);
+                    }
+                    g.closePath();
+                    g.fill();
                 }
-                g.fillRoundedRect(-28, -95, 56, 45, 15);
-                // Highlight
-                g.fillStyle(highlight, 0.3);
-                g.fillCircle(-12, -105, 12);
+                // Back hair
+                g.fillRoundedRect(-16, -92, 32, 45, 8);
+                // Highlights
+                g.fillStyle(highlight, 0.25);
+                g.fillEllipse(-8, -98, 10, 7);
                 break;
+
+            default:
+                // Default short hair
+                g.fillStyle(hairCol, 1);
+                g.fillEllipse(0, -95, 22, 14);
+                g.fillStyle(highlight, 0.2);
+                g.fillEllipse(-6, -98, 8, 5);
         }
+    }
+
+    drawHairStyle(g, hairCol, cfg, outlineCol, outlineW) {
+        // Legacy method - now uses the new human hair system
+        // This method kept for backwards compatibility
+        return;
     }
 
     // Movement
