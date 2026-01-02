@@ -5,6 +5,9 @@
 import Phaser from 'phaser';
 import { FIGHT_CONFIG, FIGHTERS, DEPTH } from '../config/fightConfig.js';
 import Fighter from '../entities/Fighter.js';
+import SoundManager from '../systems/SoundManager.js';
+import FighterAI from '../systems/FighterAI.js';
+import ComboSystem from '../systems/ComboSystem.js';
 
 export default class FightScene extends Phaser.Scene {
     constructor() {
@@ -22,6 +25,9 @@ export default class FightScene extends Phaser.Scene {
         this.currentRound = 1;
         this.roundTime = FIGHT_CONFIG.roundTime;
         this.matchState = 'intro'; // intro, fighting, round_end, match_end
+
+        // AI difficulty from data or default
+        this.aiDifficulty = data.difficulty || 'normal';
     }
 
     create() {
@@ -355,6 +361,44 @@ export default class FightScene extends Phaser.Scene {
         // Store starting positions
         this.p1StartX = p1X;
         this.p2StartX = p2X;
+
+        // Initialize sound manager
+        this.soundManager = new SoundManager(this);
+
+        // Initialize combo systems
+        this.p1Combo = new ComboSystem(this.player1);
+        this.p2Combo = new ComboSystem(this.player2);
+
+        // Initialize AI for CPU mode
+        if (this.gameMode === 'vs_cpu') {
+            this.cpuAI = new FighterAI(this.player2, this.aiDifficulty);
+            this.cpuAI.setOpponent(this.player1);
+        }
+
+        // Create combo counter display
+        this.createComboDisplay();
+    }
+
+    createComboDisplay() {
+        const { width, height } = this.cameras.main;
+
+        // P1 combo counter (left side)
+        this.p1ComboText = this.add.text(100, height / 2, '', {
+            fontFamily: 'Arial Black',
+            fontSize: '32px',
+            color: '#00ffff',
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(DEPTH.UI).setAlpha(0);
+
+        // P2 combo counter (right side)
+        this.p2ComboText = this.add.text(width - 100, height / 2, '', {
+            fontFamily: 'Arial Black',
+            fontSize: '32px',
+            color: '#ff00ff',
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(DEPTH.UI).setAlpha(0);
     }
 
     createUI(width, height) {
@@ -594,9 +638,19 @@ export default class FightScene extends Phaser.Scene {
             ease: 'Back.out'
         });
 
+        // Play round sound
+        if (this.soundManager) {
+            this.soundManager.playRound(this.currentRound);
+        }
+
         this.time.delayedCall(1000, () => {
             roundAnnounce.setText('FIGHT!');
             roundAnnounce.setColor('#ff0000');
+
+            // Play fight sound
+            if (this.soundManager) {
+                this.soundManager.playFight();
+            }
 
             this.tweens.add({
                 targets: roundAnnounce,
@@ -727,6 +781,11 @@ export default class FightScene extends Phaser.Scene {
         this.matchState = 'match_end';
         const { width, height } = this.cameras.main;
 
+        // Play win sound
+        if (this.soundManager) {
+            this.soundManager.playWin();
+        }
+
         // Dark overlay
         const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
         overlay.setDepth(DEPTH.OVERLAY);
@@ -848,7 +907,7 @@ export default class FightScene extends Phaser.Scene {
         if (this.matchState !== 'fighting') return;
 
         if (this.gameMode === 'vs_cpu') {
-            this.handleCPU();
+            this.handleCPU(this.game.loop.delta);
             return;
         }
 
@@ -891,78 +950,10 @@ export default class FightScene extends Phaser.Scene {
         }
     }
 
-    handleCPU() {
-        const cpu = this.player2;
-        const player = this.player1;
-
-        // Don't act if not able
-        if (!cpu.canAct || cpu.state === 'hit' || cpu.state === 'ko') return;
-
-        const distance = Math.abs(cpu.container.x - player.container.x);
-        const random = Math.random();
-
-        // Face player
-        cpu.faceOpponent(player.container.x);
-
-        // Decision making based on distance
-        if (distance > 200) {
-            // Approach
-            if (player.container.x < cpu.container.x) {
-                cpu.moveLeft();
-            } else {
-                cpu.moveRight();
-            }
-
-            // Occasional jump approach
-            if (random < 0.01) {
-                cpu.jump();
-            }
-        } else if (distance > 80) {
-            // Mid range - mix approach and attacks
-            if (random < 0.6) {
-                // Approach
-                if (player.container.x < cpu.container.x) {
-                    cpu.moveLeft();
-                } else {
-                    cpu.moveRight();
-                }
-            } else if (random < 0.8) {
-                // Attack
-                if (random < 0.7) {
-                    cpu.kick();
-                } else {
-                    cpu.punch();
-                }
-            }
-        } else {
-            // Close range - attack or block
-            if (player.state === 'attacking') {
-                // Try to block
-                if (random < 0.7) {
-                    cpu.block(true);
-                    this.time.delayedCall(300, () => cpu.block(false));
-                }
-            } else {
-                // Attack
-                if (random < 0.3) {
-                    cpu.punch();
-                } else if (random < 0.5) {
-                    cpu.kick();
-                } else if (random < 0.6) {
-                    cpu.uppercut();
-                } else if (random < 0.65) {
-                    cpu.sweep();
-                } else if (random < 0.7 && cpu.specialMeter >= cpu.maxSpecialMeter) {
-                    cpu.special();
-                } else {
-                    // Back off sometimes
-                    if (player.container.x < cpu.container.x) {
-                        cpu.moveRight();
-                    } else {
-                        cpu.moveLeft();
-                    }
-                }
-            }
+    handleCPU(delta) {
+        // Use the advanced AI system
+        if (this.cpuAI) {
+            this.cpuAI.update(delta);
         }
     }
 
@@ -981,15 +972,50 @@ export default class FightScene extends Phaser.Scene {
         if (hit) {
             const result = defender.takeHit(hitbox.damage, hitbox.type, attacker.container.x);
 
+            // Get combo system for attacker
+            const comboSystem = attacker === this.player1 ? this.p1Combo : this.p2Combo;
+            const comboText = attacker === this.player1 ? this.p1ComboText : this.p2ComboText;
+
             // Build attacker's special meter
             if (!result.blocked) {
                 attacker.specialMeter = Math.min(attacker.maxSpecialMeter, attacker.specialMeter + hitbox.damage * 0.5);
+
+                // Register hit in combo system
+                const comboResult = comboSystem.registerHit(hitbox.damage, hitbox.type);
+
+                // Update combo display
+                if (comboResult.count >= 2) {
+                    this.showComboCounter(comboText, comboResult.count);
+                    if (this.soundManager) {
+                        this.soundManager.playCombo(comboResult.count);
+                    }
+                }
+
+                // Play attack sound
+                if (this.soundManager) {
+                    switch (hitbox.type) {
+                        case 'punch': this.soundManager.playPunch(); break;
+                        case 'kick': this.soundManager.playKick(); break;
+                        case 'uppercut': this.soundManager.playUppercut(); break;
+                        case 'sweep': this.soundManager.playSweep(); break;
+                        case 'special': this.soundManager.playSpecial(); break;
+                    }
+                    this.soundManager.playHit();
+                }
 
                 // Screen effects based on attack type
                 this.triggerHitScreenEffects(hitbox.type, hitbox.damage);
             } else {
                 // Block screen effect (lighter shake)
                 this.cameras.main.shake(50, 0.003);
+
+                // Play block sound
+                if (this.soundManager) {
+                    this.soundManager.playBlock();
+                }
+
+                // Reset combo on block
+                comboSystem.resetCombo();
             }
 
             // Deactivate hitbox
@@ -998,10 +1024,38 @@ export default class FightScene extends Phaser.Scene {
             // Check for KO
             if (defender.health <= 0) {
                 const winner = defender === this.player2 ? 1 : 2;
+
+                // Play KO sound
+                if (this.soundManager) {
+                    this.soundManager.playKO();
+                }
+
                 this.triggerKOEffects();
                 this.endRound(winner);
             }
         }
+    }
+
+    showComboCounter(comboText, count) {
+        comboText.setText(`${count} HIT${count > 1 ? 'S' : ''}!`);
+        comboText.setAlpha(1);
+        comboText.setScale(1.5);
+
+        // Animate
+        this.tweens.add({
+            targets: comboText,
+            scale: 1,
+            duration: 200,
+            ease: 'Back.out'
+        });
+
+        // Fade out after delay
+        this.tweens.add({
+            targets: comboText,
+            alpha: 0,
+            delay: 800,
+            duration: 300
+        });
     }
 
     triggerHitScreenEffects(attackType, damage) {
@@ -1189,6 +1243,10 @@ export default class FightScene extends Phaser.Scene {
         // Update fighters
         this.player1.update(delta);
         this.player2.update(delta);
+
+        // Update combo systems
+        if (this.p1Combo) this.p1Combo.update(delta);
+        if (this.p2Combo) this.p2Combo.update(delta);
 
         // Auto-face opponent
         if (this.matchState === 'fighting') {
