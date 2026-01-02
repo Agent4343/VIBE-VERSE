@@ -786,13 +786,13 @@ export default class FightScene extends Phaser.Scene {
         const winnerConfig = winner === 1 ? FIGHTERS[this.player1Id] : FIGHTERS[this.player2Id];
         const winnerName = winnerConfig.name.toUpperCase();
         const prefix = winner === 2 && this.gameMode === 'vs_cpu' ? 'CPU ' : '';
-        const winnerColor = winner === 1 ? '#00ffff' : '#ff00ff';
+        const winnerColorHex = winner === 1 ? '#00ffff' : '#ff00ff';
 
         // Spotlight effect on winner
         const spotlight = this.add.graphics();
         spotlight.fillGradientStyle(
-            Phaser.Display.Color.HexStringToColor(winnerColor).color,
-            Phaser.Display.Color.HexStringToColor(winnerColor).color,
+            Phaser.Display.Color.HexStringToColor(winnerColorHex).color,
+            Phaser.Display.Color.HexStringToColor(winnerColorHex).color,
             0x000000, 0x000000,
             0.4, 0.4, 0, 0
         );
@@ -808,7 +808,7 @@ export default class FightScene extends Phaser.Scene {
         });
 
         // Victory particles
-        this.createVictoryParticles(winningFighter.container.x, winningFighter.container.y - 50, winnerColor);
+        this.createVictoryParticles(winningFighter.container.x, winningFighter.container.y - 50, winnerColorHex);
 
         // "WINNER" pre-text
         const winnerLabel = this.add.text(width / 2, height / 2 - 130, 'WINNER', {
@@ -831,7 +831,7 @@ export default class FightScene extends Phaser.Scene {
         const victoryText = this.add.text(width / 2, height / 2 - 80, `${prefix}${winnerName}`, {
             fontFamily: 'Arial Black',
             fontSize: '64px',
-            color: winnerColor,
+            color: winnerColorHex,
             stroke: '#000000',
             strokeThickness: 10
         }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1).setAlpha(0).setScale(2);
@@ -882,7 +882,7 @@ export default class FightScene extends Phaser.Scene {
 
         // Decorative line
         const line = this.add.rectangle(width / 2, height / 2 + 25, 300, 3,
-            Phaser.Display.Color.HexStringToColor(winnerColor).color, 0.8);
+            Phaser.Display.Color.HexStringToColor(winnerColorHex).color, 0.8);
         line.setDepth(DEPTH.OVERLAY + 1);
         line.setScale(0, 1);
 
