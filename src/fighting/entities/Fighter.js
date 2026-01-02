@@ -58,17 +58,18 @@ export default class Fighter {
     createRealisticBody() {
         const cfg = this.config;
 
-        // Get appearance settings with fallbacks
-        const skin = cfg.skinTone || 0xd4a574;
-        const skinDark = cfg.skinShadow || Phaser.Display.Color.ValueToColor(skin).darken(25).color;
-        const skinLight = cfg.skinHighlight || Phaser.Display.Color.ValueToColor(skin).lighten(15).color;
-        const hairCol = cfg.hairColor || 0x222222;
-        const topCol = cfg.outfitTop || cfg.color || 0xcc0000;
-        const topDark = Phaser.Display.Color.ValueToColor(topCol).darken(30).color;
-        const bottomCol = cfg.outfitBottom || 0x222222;
-        const gloveCol = cfg.gloveColor || cfg.accentColor || 0xff0000;
-        const bootCol = cfg.bootColor || 0x111111;
-        const outlineCol = 0x000000;
+        // Store colors for limb drawing
+        this.colors = {
+            skin: cfg.skinTone || 0xd4a574,
+            skinDark: cfg.skinShadow || Phaser.Display.Color.ValueToColor(cfg.skinTone || 0xd4a574).darken(25).color,
+            skinLight: cfg.skinHighlight || Phaser.Display.Color.ValueToColor(cfg.skinTone || 0xd4a574).lighten(15).color,
+            hair: cfg.hairColor || 0x222222,
+            top: cfg.outfitTop || cfg.color || 0xcc0000,
+            topDark: Phaser.Display.Color.ValueToColor(cfg.outfitTop || cfg.color || 0xcc0000).darken(30).color,
+            bottom: cfg.outfitBottom || 0x222222,
+            glove: cfg.gloveColor || cfg.accentColor || 0xff0000,
+            boot: cfg.bootColor || 0x111111
+        };
 
         // Ground shadow
         this.shadow = this.scene.add.ellipse(0, 75, 70, 18, 0x000000, 0.35);
@@ -78,216 +79,41 @@ export default class Fighter {
         this.glow = this.scene.add.circle(0, -30, 65, cfg.color, 0.12);
         this.container.add(this.glow);
 
-        // Main graphics object
+        // === CREATE ANIMATABLE LIMBS AS SEPARATE CONTAINERS ===
+
+        // Back leg (right leg visually)
+        this.backLegContainer = this.scene.add.container(12, 8);
+        this.container.add(this.backLegContainer);
+        this.drawLeg(this.backLegContainer, this.colors, true);
+
+        // Front leg (left leg visually) - ANIMATABLE for kicks
+        this.frontLegContainer = this.scene.add.container(-12, 8);
+        this.container.add(this.frontLegContainer);
+        this.drawLeg(this.frontLegContainer, this.colors, false);
+
+        // Main torso graphics
         this.bodyGfx = this.scene.add.graphics();
         this.container.add(this.bodyGfx);
-        const g = this.bodyGfx;
+        this.drawTorso(this.bodyGfx, this.colors, cfg);
 
-        // ========== LEGS (Back leg first for depth) ==========
-        // Right thigh (back)
-        g.fillStyle(bottomCol, 1);
-        this.drawLimb(g, 8, 8, 16, 32, 8); // thigh
-        g.fillStyle(skin, 1);
-        this.drawLimb(g, 10, 38, 14, 22, 6); // calf
-        // Boot
-        g.fillStyle(bootCol, 1);
-        g.fillRoundedRect(4, 58, 20, 14, 4);
-        g.fillStyle(0xffffff, 0.15);
-        g.fillRoundedRect(6, 60, 6, 8, 2);
+        // Back arm (left arm visually)
+        this.backArmContainer = this.scene.add.container(-38, -44);
+        this.container.add(this.backArmContainer);
+        this.drawArm(this.backArmContainer, this.colors, true);
 
-        // Left thigh (front)
-        g.fillStyle(bottomCol, 1);
-        this.drawLimb(g, -24, 8, 16, 32, 8);
-        g.fillStyle(skin, 1);
-        this.drawLimb(g, -22, 38, 14, 22, 6);
-        // Calf shading
-        g.fillStyle(skinDark, 0.3);
-        g.fillRoundedRect(-20, 42, 4, 14, 2);
-        // Boot
-        g.fillStyle(bootCol, 1);
-        g.fillRoundedRect(-26, 58, 20, 14, 4);
-        g.fillStyle(0xffffff, 0.15);
-        g.fillRoundedRect(-24, 60, 6, 8, 2);
+        // Front arm (right arm visually) - ANIMATABLE for punches
+        this.frontArmContainer = this.scene.add.container(38, -44);
+        this.container.add(this.frontArmContainer);
+        this.drawArm(this.frontArmContainer, this.colors, false);
 
-        // ========== TORSO ==========
-        // Core body shape - trapezoid torso for athletic look
-        g.fillStyle(topCol, 1);
-        g.beginPath();
-        g.moveTo(-24, -48); // top left (shoulders)
-        g.lineTo(24, -48);  // top right
-        g.lineTo(20, 12);   // bottom right (waist)
-        g.lineTo(-20, 12);  // bottom left
-        g.closePath();
-        g.fill();
-
-        // Chest definition
-        g.fillStyle(topDark, 0.4);
-        g.fillEllipse(12, -32, 14, 18);
-        g.fillStyle(0xffffff, 0.1);
-        g.fillEllipse(-10, -36, 12, 14);
-
-        // Abs suggestion (for tank top/tight shirt)
-        g.fillStyle(topDark, 0.15);
-        g.fillRoundedRect(-8, -20, 16, 28, 4);
-        g.lineStyle(1, topDark, 0.2);
-        g.lineBetween(-6, -12, 6, -12);
-        g.lineBetween(-6, -2, 6, -2);
-
-        // Collar/neckline
-        g.fillStyle(skin, 1);
-        g.fillEllipse(0, -48, 16, 8);
-
-        // Belt/waistband
-        g.fillStyle(0x1a1a1a, 1);
-        g.fillRoundedRect(-20, 6, 40, 8, 2);
-        g.fillStyle(cfg.accentColor || 0xccaa00, 1);
-        g.fillRoundedRect(-6, 7, 12, 6, 2);
-
-        // ========== ARMS ==========
-        // Left arm (back) - upper arm
-        g.fillStyle(skin, 1);
-        this.drawLimb(g, -42, -44, 14, 28, 7);
-        // Forearm
-        this.drawLimb(g, -44, -18, 12, 24, 6);
-        // Muscle shading
-        g.fillStyle(skinDark, 0.25);
-        g.fillEllipse(-36, -36, 5, 10);
-        // Left glove/hand
-        g.fillStyle(gloveCol, 1);
-        g.fillCircle(-38, 8, 12);
-        g.fillRoundedRect(-46, 2, 16, 18, 6);
-        g.fillStyle(0xffffff, 0.2);
-        g.fillCircle(-42, 6, 4);
-
-        // Right arm (front) - upper arm with bicep
-        g.fillStyle(skin, 1);
-        this.drawLimb(g, 28, -44, 14, 28, 7);
-        // Bicep highlight
-        g.fillStyle(skinLight, 0.3);
-        g.fillEllipse(34, -36, 5, 8);
-        // Forearm
-        g.fillStyle(skin, 1);
-        this.drawLimb(g, 32, -18, 12, 24, 6);
-        // Forearm definition
-        g.fillStyle(skinDark, 0.2);
-        g.fillEllipse(40, -10, 4, 10);
-        // Right glove/hand
-        g.fillStyle(gloveCol, 1);
-        g.fillCircle(38, 8, 12);
-        g.fillRoundedRect(30, 2, 16, 18, 6);
-        g.fillStyle(0xffffff, 0.2);
-        g.fillCircle(34, 6, 4);
-
-        // ========== NECK ==========
-        g.fillStyle(skin, 1);
-        g.fillRoundedRect(-8, -58, 16, 14, 4);
-        // Neck shading
-        g.fillStyle(skinDark, 0.2);
-        g.fillRoundedRect(2, -56, 5, 10, 2);
-
-        // ========== HEAD ==========
-        // Head shape - slightly oval for more human look
-        g.fillStyle(skin, 1);
-        g.fillEllipse(0, -78, 24, 28);
-
-        // Jaw definition
-        g.fillStyle(skinDark, 0.15);
-        g.fillEllipse(8, -68, 12, 10);
-
-        // Cheek highlight
-        g.fillStyle(skinLight, 0.2);
-        g.fillCircle(-10, -76, 8);
-
-        // ========== FACE ==========
-        // Eyes - more almond shaped
-        g.fillStyle(0xffffff, 1);
-        g.fillEllipse(-9, -80, 8, 5);
-        g.fillEllipse(9, -80, 8, 5);
-
-        // Iris
-        const lookDir = this.isPlayer1 ? 1 : -1;
-        g.fillStyle(cfg.eyeColor || 0x553322, 1);
-        g.fillCircle(-9 + lookDir, -80, 3.5);
-        g.fillCircle(9 + lookDir, -80, 3.5);
-
-        // Pupils
-        g.fillStyle(0x000000, 1);
-        g.fillCircle(-9 + lookDir, -80, 1.8);
-        g.fillCircle(9 + lookDir, -80, 1.8);
-
-        // Eye shine
-        g.fillStyle(0xffffff, 0.9);
-        g.fillCircle(-10 + lookDir, -81, 1.2);
-        g.fillCircle(8 + lookDir, -81, 1.2);
-
-        // Eyelids/lashes (subtle)
-        g.lineStyle(1.5, skinDark, 0.6);
-        g.beginPath();
-        g.arc(-9, -80, 6, -2.8, -0.3, false);
-        g.stroke();
-        g.beginPath();
-        g.arc(9, -80, 6, -2.8, -0.3, false);
-        g.stroke();
-
-        // Eyebrows - more natural curve
-        g.fillStyle(hairCol, 1);
-        g.beginPath();
-        g.moveTo(-16, -88);
-        g.lineTo(-14, -90);
-        g.lineTo(-4, -88);
-        g.lineTo(-5, -86);
-        g.closePath();
-        g.fill();
-        g.beginPath();
-        g.moveTo(16, -88);
-        g.lineTo(14, -90);
-        g.lineTo(4, -88);
-        g.lineTo(5, -86);
-        g.closePath();
-        g.fill();
-
-        // Nose - more defined
-        g.fillStyle(skinDark, 0.35);
-        g.beginPath();
-        g.moveTo(0, -76);
-        g.lineTo(-3, -68);
-        g.lineTo(0, -66);
-        g.lineTo(3, -68);
-        g.closePath();
-        g.fill();
-        // Nostril hints
-        g.fillStyle(skinDark, 0.5);
-        g.fillCircle(-2, -67, 1);
-        g.fillCircle(2, -67, 1);
-
-        // Mouth - natural lips
-        g.fillStyle(0x994455, 0.8);
-        g.fillEllipse(0, -60, 8, 3);
-        // Upper lip line
-        g.lineStyle(1, 0x773344, 0.6);
-        g.lineBetween(-6, -61, 6, -61);
-        // Lower lip highlight
-        g.fillStyle(0xbb6677, 0.4);
-        g.fillEllipse(0, -59, 5, 2);
-
-        // Ears (simple)
-        g.fillStyle(skin, 1);
-        g.fillEllipse(-22, -78, 4, 8);
-        g.fillEllipse(22, -78, 4, 8);
-        g.fillStyle(skinDark, 0.3);
-        g.fillCircle(-22, -78, 2);
-        g.fillCircle(22, -78, 2);
-
-        // ========== HAIR ==========
-        this.drawHumanHairStyle(g, hairCol, cfg);
-
-        // Head outline (subtle)
-        g.lineStyle(1, outlineCol, 0.3);
-        g.strokeEllipse(0, -78, 24, 28);
+        // Head container (for hit reactions)
+        this.headContainer = this.scene.add.container(0, -78);
+        this.container.add(this.headContainer);
+        this.drawHead(this.headContainer, this.colors, cfg);
 
         // Attack glow effects (hidden by default)
-        this.fistGlow = this.scene.add.circle(40, 5, 18, cfg.accentColor, 0);
-        this.footGlow = this.scene.add.circle(15, 60, 20, cfg.accentColor, 0);
+        this.fistGlow = this.scene.add.circle(55, -20, 18, cfg.accentColor, 0);
+        this.footGlow = this.scene.add.circle(25, 50, 20, cfg.accentColor, 0);
         this.container.add(this.fistGlow);
         this.container.add(this.footGlow);
 
@@ -301,15 +127,6 @@ export default class Fighter {
         }).setOrigin(0.5);
         this.container.add(this.nameLabel);
 
-        // Store references
-        this.leftArm = { x: 0, y: 0 };
-        this.rightArm = { x: 0, y: 0 };
-        this.leftLeg = { x: 0, y: 0, rotation: 0 };
-        this.rightLeg = { x: 0, y: 0, rotation: 0 };
-        this.head = { x: 0, y: 0 };
-        this.body = this.bodyGfx;
-        this.hair = { x: 0, y: 0 };
-
         // Breathing animation
         this.scene.tweens.add({
             targets: this.glow,
@@ -320,9 +137,206 @@ export default class Fighter {
             repeat: -1,
             ease: 'Sine.inOut'
         });
+
+        // Idle arm sway
+        this.scene.tweens.add({
+            targets: [this.frontArmContainer, this.backArmContainer],
+            rotation: { from: -0.05, to: 0.05 },
+            duration: 2000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut'
+        });
     }
 
-    // Helper to draw tapered limbs
+    drawLeg(container, colors, isBack) {
+        const g = this.scene.add.graphics();
+        container.add(g);
+
+        // Thigh
+        g.fillStyle(colors.bottom, 1);
+        g.fillRoundedRect(-8, 0, 16, 32, 8);
+
+        // Knee highlight
+        g.fillStyle(0xffffff, 0.1);
+        g.fillEllipse(0, 28, 6, 4);
+
+        // Calf
+        g.fillStyle(colors.skin, 1);
+        g.fillRoundedRect(-7, 30, 14, 24, 6);
+
+        // Calf shadow
+        if (!isBack) {
+            g.fillStyle(colors.skinDark, 0.3);
+            g.fillRoundedRect(-2, 34, 5, 16, 2);
+        }
+
+        // Boot
+        g.fillStyle(colors.boot, 1);
+        g.fillRoundedRect(-10, 52, 20, 14, 4);
+        g.fillStyle(0xffffff, 0.15);
+        g.fillRoundedRect(-8, 54, 6, 8, 2);
+    }
+
+    drawArm(container, colors, isBack) {
+        const g = this.scene.add.graphics();
+        container.add(g);
+
+        // Upper arm
+        g.fillStyle(colors.skin, 1);
+        g.fillRoundedRect(-7, 0, 14, 28, 7);
+
+        // Bicep highlight/shadow
+        if (!isBack) {
+            g.fillStyle(colors.skinLight, 0.3);
+            g.fillEllipse(0, 12, 5, 8);
+        }
+        g.fillStyle(colors.skinDark, 0.25);
+        g.fillEllipse(isBack ? -3 : 3, 14, 4, 10);
+
+        // Forearm
+        g.fillStyle(colors.skin, 1);
+        g.fillRoundedRect(-6, 26, 12, 24, 6);
+
+        // Forearm definition
+        g.fillStyle(colors.skinDark, 0.2);
+        g.fillEllipse(3, 36, 3, 8);
+
+        // Glove/fist
+        g.fillStyle(colors.glove, 1);
+        g.fillCircle(0, 54, 12);
+        g.fillRoundedRect(-8, 48, 16, 16, 6);
+
+        // Glove shine
+        g.fillStyle(0xffffff, 0.25);
+        g.fillCircle(-3, 50, 5);
+    }
+
+    drawTorso(g, colors, cfg) {
+        // Neck
+        g.fillStyle(colors.skin, 1);
+        g.fillRoundedRect(-8, -58, 16, 14, 4);
+        g.fillStyle(colors.skinDark, 0.2);
+        g.fillRoundedRect(2, -56, 5, 10, 2);
+
+        // Core body shape - trapezoid torso
+        g.fillStyle(colors.top, 1);
+        g.beginPath();
+        g.moveTo(-24, -48);
+        g.lineTo(24, -48);
+        g.lineTo(20, 12);
+        g.lineTo(-20, 12);
+        g.closePath();
+        g.fill();
+
+        // Chest definition
+        g.fillStyle(colors.topDark, 0.4);
+        g.fillEllipse(12, -32, 14, 18);
+        g.fillStyle(0xffffff, 0.1);
+        g.fillEllipse(-10, -36, 12, 14);
+
+        // Abs suggestion
+        g.fillStyle(colors.topDark, 0.15);
+        g.fillRoundedRect(-8, -20, 16, 28, 4);
+        g.lineStyle(1, colors.topDark, 0.2);
+        g.lineBetween(-6, -12, 6, -12);
+        g.lineBetween(-6, -2, 6, -2);
+
+        // Collar/neckline
+        g.fillStyle(colors.skin, 1);
+        g.fillEllipse(0, -48, 16, 8);
+
+        // Belt/waistband
+        g.fillStyle(0x1a1a1a, 1);
+        g.fillRoundedRect(-20, 6, 40, 8, 2);
+        g.fillStyle(cfg.accentColor || 0xccaa00, 1);
+        g.fillRoundedRect(-6, 7, 12, 6, 2);
+    }
+
+    drawHead(container, colors, cfg) {
+        const g = this.scene.add.graphics();
+        container.add(g);
+
+        // Head shape
+        g.fillStyle(colors.skin, 1);
+        g.fillEllipse(0, 0, 24, 28);
+
+        // Jaw shadow
+        g.fillStyle(colors.skinDark, 0.15);
+        g.fillEllipse(8, 10, 12, 10);
+
+        // Cheek highlight
+        g.fillStyle(colors.skinLight, 0.2);
+        g.fillCircle(-10, 2, 8);
+
+        // Eyes
+        g.fillStyle(0xffffff, 1);
+        g.fillEllipse(-9, -2, 8, 5);
+        g.fillEllipse(9, -2, 8, 5);
+
+        // Iris
+        const lookDir = this.isPlayer1 ? 1 : -1;
+        g.fillStyle(cfg.eyeColor || 0x553322, 1);
+        g.fillCircle(-9 + lookDir, -2, 3.5);
+        g.fillCircle(9 + lookDir, -2, 3.5);
+
+        // Pupils
+        g.fillStyle(0x000000, 1);
+        g.fillCircle(-9 + lookDir, -2, 1.8);
+        g.fillCircle(9 + lookDir, -2, 1.8);
+
+        // Eye shine
+        g.fillStyle(0xffffff, 0.9);
+        g.fillCircle(-10 + lookDir, -3, 1.2);
+        g.fillCircle(8 + lookDir, -3, 1.2);
+
+        // Eyebrows
+        g.fillStyle(colors.hair, 1);
+        g.beginPath();
+        g.moveTo(-16, -10);
+        g.lineTo(-14, -12);
+        g.lineTo(-4, -10);
+        g.lineTo(-5, -8);
+        g.closePath();
+        g.fill();
+        g.beginPath();
+        g.moveTo(16, -10);
+        g.lineTo(14, -12);
+        g.lineTo(4, -10);
+        g.lineTo(5, -8);
+        g.closePath();
+        g.fill();
+
+        // Nose
+        g.fillStyle(colors.skinDark, 0.35);
+        g.beginPath();
+        g.moveTo(0, 2);
+        g.lineTo(-3, 10);
+        g.lineTo(0, 12);
+        g.lineTo(3, 10);
+        g.closePath();
+        g.fill();
+
+        // Mouth
+        g.fillStyle(0x994455, 0.8);
+        g.fillEllipse(0, 18, 8, 3);
+        g.lineStyle(1, 0x773344, 0.6);
+        g.lineBetween(-6, 17, 6, 17);
+
+        // Ears
+        g.fillStyle(colors.skin, 1);
+        g.fillEllipse(-22, 0, 4, 8);
+        g.fillEllipse(22, 0, 4, 8);
+
+        // Hair
+        this.drawHumanHairStyle(g, colors.hair, cfg);
+
+        // Head outline
+        g.lineStyle(1, 0x000000, 0.3);
+        g.strokeEllipse(0, 0, 24, 28);
+    }
+
+    // Legacy compatibility
     drawLimb(g, x, y, width, height, radius) {
         g.fillRoundedRect(x, y, width, height, radius);
     }
@@ -343,46 +357,49 @@ export default class Fighter {
             Math.max(0, hc.b - 40)
         );
 
+        // Hair Y offset (relative to head container at 0,0)
+        const hy = -17;
+
         switch (style) {
             case 'short_spiky':
                 // Base hair volume
                 g.fillStyle(hairCol, 1);
-                g.fillEllipse(0, -95, 22, 16);
+                g.fillEllipse(0, hy, 22, 16);
                 // Side hair
-                g.fillEllipse(-18, -85, 8, 12);
-                g.fillEllipse(18, -85, 8, 12);
+                g.fillEllipse(-18, hy + 10, 8, 12);
+                g.fillEllipse(18, hy + 10, 8, 12);
                 // Spiky top - using triangles
-                g.fillTriangle(-12, -105, -8, -92, -4, -92);
-                g.fillTriangle(-4, -108, -2, -92, 2, -92);
-                g.fillTriangle(4, -106, 2, -92, 8, -92);
-                g.fillTriangle(12, -104, 6, -92, 14, -92);
+                g.fillTriangle(-12, hy - 10, -8, hy + 3, -4, hy + 3);
+                g.fillTriangle(-4, hy - 13, -2, hy + 3, 2, hy + 3);
+                g.fillTriangle(4, hy - 11, 2, hy + 3, 8, hy + 3);
+                g.fillTriangle(12, hy - 9, 6, hy + 3, 14, hy + 3);
                 // Highlight
                 g.fillStyle(highlight, 0.3);
-                g.fillEllipse(-6, -98, 8, 6);
+                g.fillEllipse(-6, hy - 3, 8, 6);
                 // Shadow
                 g.fillStyle(shadow, 0.3);
-                g.fillEllipse(8, -92, 10, 8);
+                g.fillEllipse(8, hy + 3, 10, 8);
                 break;
 
             case 'long_flowing':
                 // Main hair mass
                 g.fillStyle(hairCol, 1);
-                g.fillEllipse(0, -95, 26, 18);
-                // Flowing sides - using rounded rectangles instead of bezier
-                g.fillRoundedRect(-28, -90, 14, 55, 6);
-                g.fillRoundedRect(14, -90, 14, 55, 6);
+                g.fillEllipse(0, hy, 26, 18);
+                // Flowing sides
+                g.fillRoundedRect(-28, hy + 5, 14, 55, 6);
+                g.fillRoundedRect(14, hy + 5, 14, 55, 6);
                 // Back hair
-                g.fillRoundedRect(-18, -92, 36, 45, 10);
-                // Add some wave shapes with ellipses
-                g.fillEllipse(-24, -70, 8, 12);
-                g.fillEllipse(-22, -50, 7, 10);
-                g.fillEllipse(24, -70, 8, 12);
-                g.fillEllipse(22, -50, 7, 10);
+                g.fillRoundedRect(-18, hy + 3, 36, 45, 10);
+                // Wave shapes
+                g.fillEllipse(-24, hy + 25, 8, 12);
+                g.fillEllipse(-22, hy + 45, 7, 10);
+                g.fillEllipse(24, hy + 25, 8, 12);
+                g.fillEllipse(22, hy + 45, 7, 10);
                 // Highlights
                 g.fillStyle(highlight, 0.25);
-                g.fillEllipse(-10, -100, 10, 8);
+                g.fillEllipse(-10, hy - 5, 10, 8);
                 g.fillStyle(shadow, 0.2);
-                g.fillEllipse(10, -88, 12, 10);
+                g.fillEllipse(10, hy + 7, 12, 10);
                 break;
 
             case 'hooded':
@@ -590,9 +607,31 @@ export default class Fighter {
 
     animateAttack(type, duration) {
         const accent = this.config.accentColor;
+        const dir = this.facing; // 1 = right, -1 = left
 
         switch (type) {
             case 'punch':
+                // === ARM ANIMATION: Punch forward ===
+                this.scene.tweens.add({
+                    targets: this.frontArmContainer,
+                    rotation: -0.8 * dir, // Extend arm forward
+                    x: 38 + (20 * dir), // Move arm forward
+                    duration: duration / 3,
+                    yoyo: true,
+                    ease: 'Power2.out',
+                    onComplete: () => {
+                        this.frontArmContainer.rotation = 0;
+                        this.frontArmContainer.x = 38;
+                    }
+                });
+                // Secondary arm pulls back
+                this.scene.tweens.add({
+                    targets: this.backArmContainer,
+                    rotation: 0.3 * dir,
+                    duration: duration / 3,
+                    yoyo: true
+                });
+                // Fist glow
                 this.scene.tweens.add({
                     targets: this.fistGlow,
                     alpha: 0.8,
@@ -601,10 +640,40 @@ export default class Fighter {
                     yoyo: true,
                     repeat: 1
                 });
+                // Upper body lean into punch
+                this.scene.tweens.add({
+                    targets: this.bodyGfx,
+                    rotation: -0.08 * dir,
+                    duration: duration / 3,
+                    yoyo: true
+                });
                 this.createAttackTrail('punch', duration);
                 break;
 
             case 'kick':
+                // === LEG ANIMATION: Kick forward ===
+                this.scene.tweens.add({
+                    targets: this.frontLegContainer,
+                    rotation: -1.2 * dir, // Swing leg forward
+                    x: -12 + (25 * dir), // Extend outward
+                    y: -10, // Raise leg
+                    duration: duration / 3,
+                    yoyo: true,
+                    ease: 'Power3.out',
+                    onComplete: () => {
+                        this.frontLegContainer.rotation = 0;
+                        this.frontLegContainer.x = -12;
+                        this.frontLegContainer.y = 8;
+                    }
+                });
+                // Back leg plants firmly
+                this.scene.tweens.add({
+                    targets: this.backLegContainer,
+                    rotation: 0.15 * dir,
+                    duration: duration / 3,
+                    yoyo: true
+                });
+                // Foot glow
                 this.scene.tweens.add({
                     targets: this.footGlow,
                     alpha: 0.8,
@@ -613,10 +682,48 @@ export default class Fighter {
                     yoyo: true,
                     repeat: 1
                 });
+                // Slight body rotation into kick
+                this.scene.tweens.add({
+                    targets: this.bodyGfx,
+                    rotation: -0.1 * dir,
+                    duration: duration / 3,
+                    yoyo: true
+                });
                 this.createAttackTrail('kick', duration);
                 break;
 
             case 'uppercut':
+                // === ARM ANIMATION: Rising uppercut ===
+                this.scene.tweens.add({
+                    targets: this.frontArmContainer,
+                    rotation: -1.4 * dir, // Arm swings up
+                    y: -70, // Raise arm high
+                    x: 38 + (15 * dir),
+                    duration: duration / 2,
+                    yoyo: true,
+                    ease: 'Power2.out',
+                    onComplete: () => {
+                        this.frontArmContainer.rotation = 0;
+                        this.frontArmContainer.y = -44;
+                        this.frontArmContainer.x = 38;
+                    }
+                });
+                // Body rises with uppercut
+                this.scene.tweens.add({
+                    targets: this.container,
+                    y: this.container.y - 25,
+                    duration: duration / 2,
+                    yoyo: true,
+                    ease: 'Sine.out'
+                });
+                // Legs crouch then extend
+                this.scene.tweens.add({
+                    targets: [this.frontLegContainer, this.backLegContainer],
+                    y: { from: 15, to: 8 },
+                    duration: duration / 3,
+                    yoyo: true
+                });
+                // Fist glow
                 this.scene.tweens.add({
                     targets: this.fistGlow,
                     alpha: 1,
@@ -625,25 +732,26 @@ export default class Fighter {
                     duration: duration / 3,
                     yoyo: true
                 });
-                this.scene.tweens.add({
-                    targets: this.container,
-                    y: this.container.y - 25,
-                    duration: duration / 2,
-                    yoyo: true,
-                    ease: 'Sine.out'
-                });
                 this.createAttackTrail('uppercut', duration);
                 break;
 
             case 'sweep':
+                // === LEG ANIMATION: Low sweeping kick ===
                 this.scene.tweens.add({
-                    targets: this.footGlow,
-                    alpha: 0.9,
-                    scale: 2,
-                    x: 40 * this.facing,
-                    duration: duration / 3,
-                    yoyo: true
+                    targets: this.frontLegContainer,
+                    rotation: -1.5 * dir, // Wide sweep
+                    x: -12 + (40 * dir), // Extend far
+                    y: 25, // Drop low
+                    duration: duration / 2,
+                    yoyo: true,
+                    ease: 'Power2.out',
+                    onComplete: () => {
+                        this.frontLegContainer.rotation = 0;
+                        this.frontLegContainer.x = -12;
+                        this.frontLegContainer.y = 8;
+                    }
                 });
+                // Crouch body
                 this.scene.tweens.add({
                     targets: this.container,
                     y: this.container.y + 30,
@@ -651,10 +759,71 @@ export default class Fighter {
                     yoyo: true,
                     ease: 'Power2'
                 });
+                // Arms balance
+                this.scene.tweens.add({
+                    targets: this.frontArmContainer,
+                    rotation: 0.5 * dir,
+                    duration: duration / 3,
+                    yoyo: true
+                });
+                this.scene.tweens.add({
+                    targets: this.backArmContainer,
+                    rotation: -0.3 * dir,
+                    duration: duration / 3,
+                    yoyo: true
+                });
+                // Foot glow
+                this.scene.tweens.add({
+                    targets: this.footGlow,
+                    alpha: 0.9,
+                    scale: 2,
+                    x: 40 * dir,
+                    duration: duration / 3,
+                    yoyo: true
+                });
                 this.createAttackTrail('sweep', duration);
                 break;
 
             case 'special':
+                // === FULL BODY ANIMATION: Special attack ===
+                // Both arms thrust forward
+                this.scene.tweens.add({
+                    targets: this.frontArmContainer,
+                    rotation: -1.0 * dir,
+                    x: 38 + (30 * dir),
+                    duration: duration / 2,
+                    yoyo: true,
+                    ease: 'Power3.out',
+                    onComplete: () => {
+                        this.frontArmContainer.rotation = 0;
+                        this.frontArmContainer.x = 38;
+                    }
+                });
+                this.scene.tweens.add({
+                    targets: this.backArmContainer,
+                    rotation: -0.6 * dir,
+                    x: -38 + (20 * dir),
+                    duration: duration / 2,
+                    yoyo: true,
+                    ease: 'Power3.out',
+                    onComplete: () => {
+                        this.backArmContainer.rotation = 0;
+                        this.backArmContainer.x = -38;
+                    }
+                });
+                // Kick motion
+                this.scene.tweens.add({
+                    targets: this.frontLegContainer,
+                    rotation: -0.8 * dir,
+                    x: -12 + (15 * dir),
+                    duration: duration / 2,
+                    yoyo: true,
+                    onComplete: () => {
+                        this.frontLegContainer.rotation = 0;
+                        this.frontLegContainer.x = -12;
+                    }
+                });
+                // Body energy burst
                 this.scene.tweens.add({
                     targets: this.glow,
                     alpha: 0.8,
@@ -676,6 +845,13 @@ export default class Fighter {
                     duration: duration / 3,
                     yoyo: true,
                     ease: 'Power2'
+                });
+                // Head recoil
+                this.scene.tweens.add({
+                    targets: this.headContainer,
+                    y: -82,
+                    duration: duration / 4,
+                    yoyo: true
                 });
                 this.createAttackTrail('special', duration);
                 break;
@@ -880,7 +1056,9 @@ export default class Fighter {
     showHitEffect(damage) {
         const hitX = this.container.x;
         const hitY = this.container.y - 35;
+        const recoilDir = this.facing; // Recoil opposite to facing
 
+        // Body flash
         this.scene.tweens.add({
             targets: this.bodyGfx,
             alpha: 0.5,
@@ -889,12 +1067,73 @@ export default class Fighter {
             repeat: 2
         });
 
+        // Glow flash
         this.scene.tweens.add({
             targets: this.glow,
             alpha: 0.9,
             scale: 1.8,
             duration: 80,
             yoyo: true
+        });
+
+        // === HEAD SNAP BACK on hit ===
+        const headRecoil = Math.min(damage * 0.3, 8);
+        this.scene.tweens.add({
+            targets: this.headContainer,
+            x: -headRecoil * recoilDir,
+            rotation: 0.15 * recoilDir,
+            duration: 60,
+            yoyo: true,
+            ease: 'Power2.out',
+            onComplete: () => {
+                this.headContainer.x = 0;
+                this.headContainer.rotation = 0;
+            }
+        });
+
+        // === ARMS FLAIL on hit ===
+        this.scene.tweens.add({
+            targets: this.frontArmContainer,
+            rotation: 0.4 * recoilDir,
+            duration: 80,
+            yoyo: true,
+            onComplete: () => {
+                this.frontArmContainer.rotation = 0;
+            }
+        });
+        this.scene.tweens.add({
+            targets: this.backArmContainer,
+            rotation: 0.3 * recoilDir,
+            duration: 80,
+            yoyo: true,
+            onComplete: () => {
+                this.backArmContainer.rotation = 0;
+            }
+        });
+
+        // === LEGS BUCKLE on heavy hits ===
+        if (damage >= 10) {
+            this.scene.tweens.add({
+                targets: [this.frontLegContainer, this.backLegContainer],
+                y: 12,
+                duration: 60,
+                yoyo: true,
+                onComplete: () => {
+                    this.frontLegContainer.y = 8;
+                    this.backLegContainer.y = 8;
+                }
+            });
+        }
+
+        // === TORSO TWIST on hit ===
+        this.scene.tweens.add({
+            targets: this.bodyGfx,
+            rotation: 0.1 * recoilDir,
+            duration: 60,
+            yoyo: true,
+            onComplete: () => {
+                this.bodyGfx.rotation = 0;
+            }
         });
 
         const burstColors = [0xffffff, 0xffff00, 0xff6600, 0xff0000];
