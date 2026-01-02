@@ -351,19 +351,11 @@ export default class Fighter {
                 // Side hair
                 g.fillEllipse(-18, -85, 8, 12);
                 g.fillEllipse(18, -85, 8, 12);
-                // Spiky top
-                g.beginPath();
-                g.moveTo(-12, -105);
-                g.lineTo(-8, -95);
-                g.lineTo(-4, -108);
-                g.lineTo(0, -96);
-                g.lineTo(4, -106);
-                g.lineTo(8, -95);
-                g.lineTo(12, -104);
-                g.lineTo(10, -92);
-                g.lineTo(-10, -92);
-                g.closePath();
-                g.fill();
+                // Spiky top - using triangles
+                g.fillTriangle(-12, -105, -8, -92, -4, -92);
+                g.fillTriangle(-4, -108, -2, -92, 2, -92);
+                g.fillTriangle(4, -106, 2, -92, 8, -92);
+                g.fillTriangle(12, -104, 6, -92, 14, -92);
                 // Highlight
                 g.fillStyle(highlight, 0.3);
                 g.fillEllipse(-6, -98, 8, 6);
@@ -376,23 +368,16 @@ export default class Fighter {
                 // Main hair mass
                 g.fillStyle(hairCol, 1);
                 g.fillEllipse(0, -95, 26, 18);
-                // Flowing sides
-                g.beginPath();
-                g.moveTo(-24, -90);
-                g.bezierCurveTo(-28, -70, -26, -50, -22, -35);
-                g.lineTo(-18, -35);
-                g.bezierCurveTo(-20, -55, -22, -75, -18, -88);
-                g.closePath();
-                g.fill();
-                g.beginPath();
-                g.moveTo(24, -90);
-                g.bezierCurveTo(28, -70, 26, -50, 22, -35);
-                g.lineTo(18, -35);
-                g.bezierCurveTo(20, -55, 22, -75, 18, -88);
-                g.closePath();
-                g.fill();
+                // Flowing sides - using rounded rectangles instead of bezier
+                g.fillRoundedRect(-28, -90, 14, 55, 6);
+                g.fillRoundedRect(14, -90, 14, 55, 6);
                 // Back hair
-                g.fillRoundedRect(-18, -92, 36, 40, 10);
+                g.fillRoundedRect(-18, -92, 36, 45, 10);
+                // Add some wave shapes with ellipses
+                g.fillEllipse(-24, -70, 8, 12);
+                g.fillEllipse(-22, -50, 7, 10);
+                g.fillEllipse(24, -70, 8, 12);
+                g.fillEllipse(22, -50, 7, 10);
                 // Highlights
                 g.fillStyle(highlight, 0.25);
                 g.fillEllipse(-10, -100, 10, 8);
@@ -403,34 +388,20 @@ export default class Fighter {
             case 'hooded':
                 const hoodCol = cfg.outfitTop || 0x1a0030;
                 const hoodDark = Phaser.Display.Color.ValueToColor(hoodCol).darken(30).color;
-                // Hood shape
+                // Hood shape - using simple shapes
                 g.fillStyle(hoodCol, 1);
-                g.beginPath();
-                g.moveTo(-26, -60);
-                g.bezierCurveTo(-30, -90, -20, -110, 0, -115);
-                g.bezierCurveTo(20, -110, 30, -90, 26, -60);
-                g.lineTo(20, -55);
-                g.bezierCurveTo(16, -85, 10, -100, 0, -102);
-                g.bezierCurveTo(-10, -100, -16, -85, -20, -55);
-                g.closePath();
-                g.fill();
-                // Hood shadow inside
+                // Main hood body
+                g.fillEllipse(0, -90, 32, 30);
+                g.fillRoundedRect(-30, -95, 60, 45, 12);
+                // Hood peak
+                g.fillTriangle(0, -118, -20, -92, 20, -92);
+                // Hood inner shadow
                 g.fillStyle(0x000000, 0.5);
                 g.fillEllipse(0, -75, 18, 16);
                 // Hood folds
                 g.fillStyle(hoodDark, 0.4);
-                g.beginPath();
-                g.moveTo(-22, -70);
-                g.lineTo(-18, -95);
-                g.lineTo(-14, -70);
-                g.closePath();
-                g.fill();
-                g.beginPath();
-                g.moveTo(22, -70);
-                g.lineTo(18, -95);
-                g.lineTo(14, -70);
-                g.closePath();
-                g.fill();
+                g.fillTriangle(-22, -70, -18, -95, -14, -70);
+                g.fillTriangle(22, -70, 18, -95, 14, -70);
                 break;
 
             case 'bald':
@@ -445,16 +416,14 @@ export default class Fighter {
                 // Top hair
                 g.fillStyle(hairCol, 1);
                 g.fillEllipse(0, -95, 22, 14);
-                // Ponytail
-                g.beginPath();
-                g.moveTo(-6, -90);
-                g.bezierCurveTo(-8, -80, -6, -60, 0, -40);
-                g.bezierCurveTo(6, -60, 8, -80, 6, -90);
-                g.closePath();
-                g.fill();
+                // Ponytail - using ellipses instead of bezier
+                g.fillEllipse(0, -80, 8, 12);
+                g.fillEllipse(0, -65, 7, 10);
+                g.fillEllipse(0, -50, 6, 10);
+                g.fillEllipse(0, -38, 5, 8);
                 // Hair tie
                 g.fillStyle(cfg.accentColor || 0xff0066, 1);
-                g.fillEllipse(0, -88, 8, 4);
+                g.fillEllipse(0, -88, 10, 4);
                 // Highlight
                 g.fillStyle(highlight, 0.3);
                 g.fillEllipse(-6, -98, 8, 5);
@@ -464,24 +433,16 @@ export default class Fighter {
                 g.fillStyle(hairCol, 1);
                 // Top volume
                 g.fillEllipse(0, -95, 24, 16);
-                // Wavy sides with curves
+                // Wavy sides - using overlapping ellipses for wave effect
                 for (let side = -1; side <= 1; side += 2) {
-                    g.beginPath();
-                    g.moveTo(side * 22, -88);
-                    for (let y = -80; y < -40; y += 10) {
-                        const wave = Math.sin((y + 80) * 0.2) * 4;
-                        g.lineTo(side * (22 + wave), y);
-                    }
-                    g.lineTo(side * 18, -40);
-                    for (let y = -40; y > -80; y -= 10) {
-                        const wave = Math.sin((y + 80) * 0.2) * 2;
-                        g.lineTo(side * (16 + wave), y);
-                    }
-                    g.closePath();
-                    g.fill();
+                    const baseX = side * 22;
+                    g.fillEllipse(baseX, -82, 8, 10);
+                    g.fillEllipse(baseX + side * 2, -68, 9, 12);
+                    g.fillEllipse(baseX, -52, 8, 12);
+                    g.fillEllipse(baseX + side * 2, -38, 7, 10);
                 }
                 // Back hair
-                g.fillRoundedRect(-16, -92, 32, 45, 8);
+                g.fillRoundedRect(-16, -92, 32, 50, 8);
                 // Highlights
                 g.fillStyle(highlight, 0.25);
                 g.fillEllipse(-8, -98, 10, 7);
