@@ -1,5 +1,6 @@
 /**
  * FightScene - Main fighting arena with combat system
+ * Enhanced with professional graphics systems
  */
 
 import Phaser from 'phaser';
@@ -8,6 +9,9 @@ import Fighter from '../entities/Fighter.js';
 import SoundManager from '../systems/SoundManager.js';
 import FighterAI from '../systems/FighterAI.js';
 import ComboSystem from '../systems/ComboSystem.js';
+import ParallaxBackground from '../systems/ParallaxBackground.js';
+import EffectsManager from '../systems/EffectsManager.js';
+import PostProcessing from '../systems/PostProcessing.js';
 
 export default class FightScene extends Phaser.Scene {
     constructor() {
@@ -44,7 +48,10 @@ export default class FightScene extends Phaser.Scene {
 
         this.cameras.main.fadeIn(300);
 
-        // Create arena
+        // Initialize professional graphics systems
+        this.initializeGraphicsSystems();
+
+        // Create arena with parallax background
         this.createArena(width, height);
 
         // Create fighters
@@ -60,92 +67,20 @@ export default class FightScene extends Phaser.Scene {
         this.showRoundIntro();
     }
 
+    initializeGraphicsSystems() {
+        // Create parallax background system
+        this.parallaxBg = new ParallaxBackground(this);
+
+        // Create effects manager for particles and impacts
+        this.effectsManager = new EffectsManager(this);
+
+        // Create post-processing for screen effects
+        this.postProcessing = new PostProcessing(this);
+    }
+
     createArena(width, height) {
-        // Sky gradient with deeper colors
-        const sky = this.add.graphics();
-        sky.fillGradientStyle(0x1a0a3e, 0x1a0a3e, 0x050520, 0x050520, 1);
-        sky.fillRect(0, 0, width, height);
-        sky.setDepth(DEPTH.BACKGROUND);
-
-        // Animated nebula clouds in background
-        for (let i = 0; i < 5; i++) {
-            const nebulaX = Phaser.Math.Between(100, width - 100);
-            const nebulaY = Phaser.Math.Between(50, height * 0.4);
-            const nebulaColor = Phaser.Math.RND.pick([0xff0066, 0x00ffff, 0x9900ff, 0xff6600]);
-            const nebula = this.add.circle(nebulaX, nebulaY, Phaser.Math.Between(60, 120), nebulaColor, 0.08);
-            nebula.setDepth(DEPTH.BACKGROUND);
-
-            this.tweens.add({
-                targets: nebula,
-                x: nebula.x + Phaser.Math.Between(-30, 30),
-                y: nebula.y + Phaser.Math.Between(-20, 20),
-                scale: { from: 1, to: 1.3 },
-                alpha: { from: 0.08, to: 0.15 },
-                duration: Phaser.Math.Between(4000, 8000),
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.inOut'
-            });
-        }
-
-        // Stars with twinkling effect
-        for (let i = 0; i < 80; i++) {
-            const x = Phaser.Math.Between(0, width);
-            const y = Phaser.Math.Between(0, height * 0.6);
-            const size = Phaser.Math.FloatBetween(0.5, 2.5);
-            const starColor = Phaser.Math.RND.pick([0xffffff, 0x88ccff, 0xffcc88]);
-            const star = this.add.circle(x, y, size, starColor, Phaser.Math.FloatBetween(0.3, 0.8));
-            star.setDepth(DEPTH.BACKGROUND + 1);
-
-            this.tweens.add({
-                targets: star,
-                alpha: Phaser.Math.FloatBetween(0.1, 0.3),
-                duration: Phaser.Math.Between(1000, 3000),
-                yoyo: true,
-                repeat: -1,
-                delay: Phaser.Math.Between(0, 2000)
-            });
-        }
-
-        // Distant city silhouette
-        this.createCitySilhouette(width, height);
-
-        // Arena floor with neon grid
-        const floorY = FIGHT_CONFIG.groundY + 45;
-        this.createNeonFloor(width, height, floorY);
-
-        // Arena boundaries (pillars)
-        this.createPillar(30, floorY, 0x8866cc);
-        this.createPillar(width - 30, floorY, 0x8866cc);
-
-        // Animated electric arcs between pillars
-        this.createElectricArcs(width, floorY);
-
-        // Scanlines overlay for retro effect
-        this.createScanlines(width, height);
-
-        // Floating particles in arena
-        this.createFloatingParticles(width, height, floorY);
-
-        // Background arena decoration with glow
-        const arenaName = this.add.text(width / 2, 50, 'NEON COLOSSEUM', {
-            fontFamily: 'Arial Black',
-            fontSize: '28px',
-            color: '#ffffff'
-        }).setOrigin(0.5).setAlpha(0.2).setDepth(DEPTH.BACKGROUND + 2);
-
-        // Arena name glow pulse
-        this.tweens.add({
-            targets: arenaName,
-            alpha: { from: 0.15, to: 0.3 },
-            duration: 2000,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.inOut'
-        });
-
-        // Ambient light rays from top
-        this.createLightRays(width, height);
+        // Use the professional parallax background system
+        this.parallaxBg.createArena('neon_city');
     }
 
     createCitySilhouette(width, height) {
@@ -818,7 +753,21 @@ export default class FightScene extends Phaser.Scene {
 
         // Trigger winner's victory pose
         const winningFighter = winner === 1 ? this.player1 : this.player2;
+        const winnerColor = winningFighter.config.accentColor || 0x00ffff;
         winningFighter.doVictoryPose();
+
+        // Professional victory effects
+        if (this.effectsManager) {
+            this.effectsManager.createVictoryEffect(winningFighter, winnerColor);
+        }
+
+        if (this.postProcessing) {
+            this.postProcessing.victoryEffect(
+                winningFighter.container.x,
+                winningFighter.container.y - 50,
+                winnerColor
+            );
+        }
 
         // Dark overlay with gradient
         const overlay = this.add.graphics();
@@ -1253,7 +1202,35 @@ export default class FightScene extends Phaser.Scene {
                     this.soundManager.playHit();
                 }
 
-                // Screen effects based on attack type
+                // === PROFESSIONAL HIT EFFECTS ===
+                const hitX = (attacker.container.x + defender.container.x) / 2;
+                const hitY = defender.container.y - 40;
+
+                // Use the effects manager for professional impact visuals
+                if (this.effectsManager) {
+                    this.effectsManager.createHitImpact(
+                        hitX, hitY,
+                        hitbox.damage,
+                        hitbox.type,
+                        attacker.config.accentColor || 0xff6600
+                    );
+                }
+
+                // Use post-processing for screen effects
+                if (this.postProcessing) {
+                    this.postProcessing.impactShake(hitbox.type, hitbox.damage);
+
+                    if (hitbox.damage >= 15) {
+                        this.postProcessing.heavyHitFlash(attacker.config.accentColor);
+                    }
+
+                    // Hit freeze for dramatic effect
+                    if (hitbox.type === 'special' || hitbox.damage >= 20) {
+                        this.postProcessing.hitFreeze(100);
+                    }
+                }
+
+                // Screen effects based on attack type (legacy)
                 this.triggerHitScreenEffects(hitbox.type, hitbox.damage);
 
                 // Check for rage mode activation
@@ -1268,8 +1245,19 @@ export default class FightScene extends Phaser.Scene {
                     this.showAnnouncerCallout('SWEPT!', '#ff00ff');
                 }
             } else {
-                // Block screen effect (lighter shake)
-                this.cameras.main.shake(50, 0.003);
+                // === PROFESSIONAL BLOCK EFFECTS ===
+                const blockX = defender.container.x + (35 * defender.facing);
+                const blockY = defender.container.y - 35;
+
+                // Use effects manager for block visual
+                if (this.effectsManager) {
+                    this.effectsManager.createBlockEffect(blockX, blockY);
+                }
+
+                // Light screen shake
+                if (this.postProcessing) {
+                    this.postProcessing.shake(0.003, 50);
+                }
 
                 // Play block sound
                 if (this.soundManager) {
@@ -1447,6 +1435,24 @@ export default class FightScene extends Phaser.Scene {
             fighter.activateRageMode();
             const name = fighter === this.player1 ? FIGHTERS[this.player1Id].name : FIGHTERS[this.player2Id].name;
             this.showAnnouncerCallout(`${name.toUpperCase()} RAGE!`, '#ff0000');
+
+            // Professional rage activation effects
+            if (this.effectsManager) {
+                fighter.rageParticleEvent = this.effectsManager.createRageEffect(fighter);
+            }
+
+            if (this.postProcessing) {
+                this.postProcessing.rageEffect(true);
+                this.postProcessing.flash(0xff0000, 0.5, 200);
+                this.postProcessing.shake(0.02, 300);
+            }
+        }
+
+        // Check for danger pulse (low health visual warning)
+        if (this.postProcessing) {
+            const p1Low = this.player1.health / this.player1.maxHealth <= 0.25;
+            const p2Low = this.player2.health / this.player2.maxHealth <= 0.25;
+            this.postProcessing.dangerPulse(p1Low || p2Low);
         }
     }
 
@@ -1507,8 +1513,31 @@ export default class FightScene extends Phaser.Scene {
         const camera = this.cameras.main;
         const { width, height } = camera;
 
-        // Get winner fighter
+        // Get winner and loser fighters
         const winningFighter = winner === 1 ? this.player1 : this.player2;
+        const losingFighter = winner === 1 ? this.player2 : this.player1;
+        const winnerColor = winningFighter.config.accentColor || 0x00ffff;
+
+        // === PROFESSIONAL KO EFFECTS ===
+        if (this.effectsManager) {
+            this.effectsManager.createKOEffect(
+                losingFighter.container.x,
+                losingFighter.container.y - 40,
+                winnerColor
+            );
+        }
+
+        if (this.postProcessing) {
+            // Dramatic KO flash sequence
+            this.postProcessing.koFlash();
+            this.postProcessing.borderFlash(0xff0000, 25, 600);
+            this.postProcessing.slowMotion(0.2, 600);
+            this.postProcessing.dramaticZoom(
+                winningFighter.container.x,
+                winningFighter.container.y - 50,
+                1.4, 400, 500
+            );
+        }
 
         // === DRAMATIC SLOW MOTION ===
         this.slowMotionEffect(800);
