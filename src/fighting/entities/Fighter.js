@@ -272,17 +272,18 @@ export default class Fighter {
         // Jaw
         g.fillStyle(skin, 1);
         if (isFemale) {
-            g.beginPath();
-            g.moveTo(-10 * S, (headY + 5) * S);
-            g.quadraticCurveTo(0, (headY + 16) * S, 10 * S, (headY + 5) * S);
-            g.fill();
+            // Feminine rounded jaw using triangles and ellipse
+            g.fillTriangle(-10 * S, (headY + 5) * S, 0, (headY + 14) * S, 10 * S, (headY + 5) * S);
+            g.fillEllipse(0, (headY + 10) * S, 10 * S, 6 * S);
         } else {
+            // Masculine angular jaw
             g.beginPath();
             g.moveTo(-11 * S, (headY + 4) * S);
             g.lineTo(-8 * S, (headY + 14) * S);
             g.lineTo(0, (headY + 16) * S);
             g.lineTo(8 * S, (headY + 14) * S);
             g.lineTo(11 * S, (headY + 4) * S);
+            g.closePath();
             g.fill();
         }
 
@@ -424,15 +425,17 @@ export default class Fighter {
                 break;
 
             case 'hooded':
+                // Draw hood using layered shapes instead of curves
                 g.fillStyle(cfg.outfitTop || 0x1a0030, 1);
-                g.beginPath();
-                g.moveTo(-20 * S, (headY + 15) * S);
-                g.quadraticCurveTo(-24 * S, (headY - 15) * S, 0, (headY - 28) * S);
-                g.quadraticCurveTo(24 * S, (headY - 15) * S, 20 * S, (headY + 15) * S);
-                g.lineTo(16 * S, (headY + 10) * S);
-                g.quadraticCurveTo(0, (headY + 5) * S, -16 * S, (headY + 10) * S);
-                g.closePath();
-                g.fill();
+                // Outer hood shape
+                g.fillEllipse(0, (headY - 8) * S, 24 * S, 22 * S);
+                g.fillRoundedRect(-22 * S, (headY - 8) * S, 44 * S, 25 * S, 8 * S);
+                // Hood opening (darker inner)
+                g.fillStyle(0x000000, 0.4);
+                g.fillEllipse(0, (headY + 5) * S, 16 * S, 12 * S);
+                // Hood peak
+                g.fillStyle(cfg.outfitTop || 0x1a0030, 1);
+                g.fillTriangle(0, (headY - 30) * S, -16 * S, (headY - 8) * S, 16 * S, (headY - 8) * S);
                 g.fillStyle(0x000000, 0.35);
                 g.fillEllipse(0, (headY - 3) * S, 14 * S, 8 * S);
                 break;
