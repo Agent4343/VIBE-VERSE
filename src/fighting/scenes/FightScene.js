@@ -28,6 +28,15 @@ export default class FightScene extends Phaser.Scene {
 
         // AI difficulty from data or default
         this.aiDifficulty = data.difficulty || 'normal';
+
+        // Hit freeze system
+        this.hitFreezeActive = false;
+        this.hitFreezeDuration = 0;
+
+        // Announcer callout tracking
+        this.lastComboCallout = 0;
+        this.lastHealthCallout = { p1: 1, p2: 1 };
+        this.comboStreak = { p1: 0, p2: 0 };
     }
 
     create() {
@@ -399,6 +408,27 @@ export default class FightScene extends Phaser.Scene {
             stroke: '#000000',
             strokeThickness: 4
         }).setOrigin(0.5).setDepth(DEPTH.UI).setAlpha(0);
+
+        // Hype announcer callout text (center screen)
+        this.announcerText = this.add.text(width / 2, height / 2 - 80, '', {
+            fontFamily: 'Arial Black',
+            fontSize: '48px',
+            color: '#ffff00',
+            stroke: '#000000',
+            strokeThickness: 6
+        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY).setAlpha(0);
+
+        // Sub-announcer for combo descriptions
+        this.subAnnouncerText = this.add.text(width / 2, height / 2 - 30, '', {
+            fontFamily: 'Arial Black',
+            fontSize: '24px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY).setAlpha(0);
+
+        // First blood tracker
+        this.firstBlood = false;
     }
 
     createUI(width, height) {
@@ -786,53 +816,160 @@ export default class FightScene extends Phaser.Scene {
             this.soundManager.playWin();
         }
 
-        // Dark overlay
-        const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
+        // Trigger winner's victory pose
+        const winningFighter = winner === 1 ? this.player1 : this.player2;
+        winningFighter.doVictoryPose();
+
+        // Dark overlay with gradient
+        const overlay = this.add.graphics();
+        overlay.fillGradientStyle(0x000000, 0x000000, 0x110022, 0x110022, 0.85, 0.85, 0.9, 0.9);
+        overlay.fillRect(0, 0, width, height);
         overlay.setDepth(DEPTH.OVERLAY);
+        overlay.setAlpha(0);
+
+        this.tweens.add({
+            targets: overlay,
+            alpha: 1,
+            duration: 500
+        });
 
         // Winner announcement
         const winnerConfig = winner === 1 ? FIGHTERS[this.player1Id] : FIGHTERS[this.player2Id];
         const winnerName = winnerConfig.name.toUpperCase();
         const prefix = winner === 2 && this.gameMode === 'vs_cpu' ? 'CPU ' : '';
+        const winnerColor = winner === 1 ? '#00ffff' : '#ff00ff';
 
+        // Spotlight effect on winner
+        const spotlight = this.add.graphics();
+        spotlight.fillGradientStyle(
+            Phaser.Display.Color.HexStringToColor(winnerColor).color,
+            Phaser.Display.Color.HexStringToColor(winnerColor).color,
+            0x000000, 0x000000,
+            0.4, 0.4, 0, 0
+        );
+        spotlight.fillCircle(winningFighter.container.x, winningFighter.container.y - 50, 150);
+        spotlight.setDepth(DEPTH.OVERLAY + 0.5);
+        spotlight.setAlpha(0);
+
+        this.tweens.add({
+            targets: spotlight,
+            alpha: 1,
+            duration: 600,
+            delay: 300
+        });
+
+        // Victory particles
+        this.createVictoryParticles(winningFighter.container.x, winningFighter.container.y - 50, winnerColor);
+
+        // "WINNER" pre-text
+        const winnerLabel = this.add.text(width / 2, height / 2 - 130, 'WINNER', {
+            fontFamily: 'Arial',
+            fontSize: '24px',
+            color: '#ffff00',
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1).setAlpha(0);
+
+        this.tweens.add({
+            targets: winnerLabel,
+            alpha: 1,
+            y: height / 2 - 120,
+            duration: 400,
+            delay: 400
+        });
+
+        // Main victory text
         const victoryText = this.add.text(width / 2, height / 2 - 80, `${prefix}${winnerName}`, {
             fontFamily: 'Arial Black',
-            fontSize: '56px',
-            color: winner === 1 ? '#00ffff' : '#ff00ff',
+            fontSize: '64px',
+            color: winnerColor,
             stroke: '#000000',
-            strokeThickness: 8
-        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1);
+            strokeThickness: 10
+        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1).setAlpha(0).setScale(2);
 
-        const winsText = this.add.text(width / 2, height / 2 - 20, 'WINS THE MATCH!', {
+        this.tweens.add({
+            targets: victoryText,
+            alpha: 1,
+            scale: 1,
+            duration: 600,
+            delay: 500,
+            ease: 'Back.out'
+        });
+
+        // Glowing text effect
+        const glowText = this.add.text(width / 2, height / 2 - 80, `${prefix}${winnerName}`, {
+            fontFamily: 'Arial Black',
+            fontSize: '64px',
+            color: '#ffffff'
+        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 0.9).setAlpha(0);
+
+        this.tweens.add({
+            targets: glowText,
+            alpha: { from: 0, to: 0.3 },
+            scale: { from: 1, to: 1.05 },
+            duration: 800,
+            delay: 800,
+            yoyo: true,
+            repeat: -1
+        });
+
+        // "WINS THE MATCH" text
+        const winsText = this.add.text(width / 2, height / 2 - 10, 'WINS THE MATCH!', {
             fontFamily: 'Arial Black',
             fontSize: '36px',
             color: '#ffffff',
             stroke: '#000000',
             strokeThickness: 6
-        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1);
+        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1).setAlpha(0);
 
-        // Victory animation
         this.tweens.add({
-            targets: [victoryText, winsText],
-            scale: { from: 0, to: 1 },
-            duration: 500,
-            ease: 'Back.out'
+            targets: winsText,
+            alpha: 1,
+            y: height / 2 - 20,
+            duration: 400,
+            delay: 800,
+            ease: 'Power2.out'
         });
 
-        // Menu options
+        // Decorative line
+        const line = this.add.rectangle(width / 2, height / 2 + 25, 300, 3,
+            Phaser.Display.Color.HexStringToColor(winnerColor).color, 0.8);
+        line.setDepth(DEPTH.OVERLAY + 1);
+        line.setScale(0, 1);
+
+        this.tweens.add({
+            targets: line,
+            scaleX: 1,
+            duration: 400,
+            delay: 1000,
+            ease: 'Power2.out'
+        });
+
+        // Menu options with delayed appearance
         const rematchBtn = this.add.text(width / 2, height / 2 + 80, 'REMATCH', {
             fontFamily: 'Arial Black',
             fontSize: '28px',
             color: '#00ff00'
-        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1)
+        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1).setAlpha(0)
         .setInteractive({ useHandCursor: true })
-        .on('pointerover', () => rematchBtn.setScale(1.1))
-        .on('pointerout', () => rematchBtn.setScale(1))
+        .on('pointerover', () => {
+            rematchBtn.setScale(1.15);
+            rematchBtn.setColor('#88ff88');
+        })
+        .on('pointerout', () => {
+            rematchBtn.setScale(1);
+            rematchBtn.setColor('#00ff00');
+        })
         .on('pointerdown', () => {
-            this.scene.restart({
-                player1: this.player1Id,
-                player2: this.player2Id,
-                mode: this.gameMode
+            if (this.soundManager) this.soundManager.playMenuConfirm();
+            this.cameras.main.fadeOut(300);
+            this.time.delayedCall(300, () => {
+                this.scene.restart({
+                    player1: this.player1Id,
+                    player2: this.player2Id,
+                    mode: this.gameMode,
+                    difficulty: this.aiDifficulty
+                });
             });
         });
 
@@ -840,25 +977,124 @@ export default class FightScene extends Phaser.Scene {
             fontFamily: 'Arial Black',
             fontSize: '24px',
             color: '#ffff00'
-        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1)
+        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1).setAlpha(0)
         .setInteractive({ useHandCursor: true })
-        .on('pointerover', () => selectBtn.setScale(1.1))
-        .on('pointerout', () => selectBtn.setScale(1))
+        .on('pointerover', () => {
+            selectBtn.setScale(1.1);
+            selectBtn.setColor('#ffff88');
+        })
+        .on('pointerout', () => {
+            selectBtn.setScale(1);
+            selectBtn.setColor('#ffff00');
+        })
         .on('pointerdown', () => {
-            this.scene.start('FighterSelectScene', { mode: this.gameMode });
+            if (this.soundManager) this.soundManager.playMenuConfirm();
+            this.cameras.main.fadeOut(300);
+            this.time.delayedCall(300, () => {
+                this.scene.start('FighterSelectScene', { mode: this.gameMode });
+            });
         });
 
         const menuBtn = this.add.text(width / 2, height / 2 + 175, 'MAIN MENU', {
             fontFamily: 'Arial',
             fontSize: '20px',
             color: '#888888'
-        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1)
+        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 1).setAlpha(0)
         .setInteractive({ useHandCursor: true })
         .on('pointerover', () => menuBtn.setColor('#ffffff'))
         .on('pointerout', () => menuBtn.setColor('#888888'))
         .on('pointerdown', () => {
-            this.scene.start('FightMenuScene');
+            if (this.soundManager) this.soundManager.playMenuSelect();
+            this.cameras.main.fadeOut(300);
+            this.time.delayedCall(300, () => {
+                this.scene.start('FightMenuScene');
+            });
         });
+
+        // Animate menu buttons in
+        [rematchBtn, selectBtn, menuBtn].forEach((btn, i) => {
+            this.tweens.add({
+                targets: btn,
+                alpha: 1,
+                y: btn.y - 10,
+                duration: 300,
+                delay: 1200 + i * 100,
+                ease: 'Power2.out'
+            });
+        });
+    }
+
+    createVictoryParticles(x, y, color) {
+        const colorValue = Phaser.Display.Color.HexStringToColor(color).color;
+
+        // Confetti-like particles
+        for (let i = 0; i < 30; i++) {
+            const particle = this.add.rectangle(
+                x + Phaser.Math.Between(-100, 100),
+                y - 100,
+                Phaser.Math.Between(6, 12),
+                Phaser.Math.Between(6, 12),
+                Phaser.Math.RND.pick([colorValue, 0xffffff, 0xffff00, 0xff6600]),
+                1
+            );
+            particle.setDepth(DEPTH.OVERLAY + 2);
+            particle.setRotation(Math.random() * Math.PI * 2);
+            particle.setAlpha(0);
+
+            this.tweens.add({
+                targets: particle,
+                alpha: 1,
+                y: y + Phaser.Math.Between(50, 200),
+                x: particle.x + Phaser.Math.Between(-50, 50),
+                rotation: particle.rotation + Phaser.Math.FloatBetween(-3, 3),
+                duration: Phaser.Math.Between(1000, 2000),
+                delay: 500 + i * 30,
+                ease: 'Power1.out',
+                onComplete: () => {
+                    this.tweens.add({
+                        targets: particle,
+                        alpha: 0,
+                        y: particle.y + 50,
+                        duration: 500,
+                        onComplete: () => particle.destroy()
+                    });
+                }
+            });
+        }
+
+        // Sparkle stars
+        for (let i = 0; i < 15; i++) {
+            const star = this.add.star(
+                x + Phaser.Math.Between(-80, 80),
+                y + Phaser.Math.Between(-80, 80),
+                5, 4, 10,
+                0xffffff,
+                1
+            );
+            star.setDepth(DEPTH.OVERLAY + 3);
+            star.setAlpha(0);
+            star.setScale(0);
+
+            this.tweens.add({
+                targets: star,
+                alpha: 1,
+                scale: { from: 0, to: 1 },
+                duration: 200,
+                delay: 800 + i * 80,
+                ease: 'Back.out',
+                onComplete: () => {
+                    this.tweens.add({
+                        targets: star,
+                        alpha: 0,
+                        scale: 0.3,
+                        rotation: Math.PI,
+                        duration: 400,
+                        delay: 200,
+                        onComplete: () => star.destroy()
+                    });
+                }
+            });
+        }
     }
 
     handleP1Input() {
@@ -975,6 +1211,7 @@ export default class FightScene extends Phaser.Scene {
             // Get combo system for attacker
             const comboSystem = attacker === this.player1 ? this.p1Combo : this.p2Combo;
             const comboText = attacker === this.player1 ? this.p1ComboText : this.p2ComboText;
+            const isP1 = attacker === this.player1;
 
             // Build attacker's special meter
             if (!result.blocked) {
@@ -983,12 +1220,25 @@ export default class FightScene extends Phaser.Scene {
                 // Register hit in combo system
                 const comboResult = comboSystem.registerHit(hitbox.damage, hitbox.type);
 
+                // === HIT FREEZE / HITSTOP ===
+                const freezeDuration = this.getHitFreezeDuration(hitbox.type, hitbox.damage);
+                this.triggerHitFreeze(freezeDuration, attacker, defender);
+
                 // Update combo display
                 if (comboResult.count >= 2) {
                     this.showComboCounter(comboText, comboResult.count);
                     if (this.soundManager) {
                         this.soundManager.playCombo(comboResult.count);
                     }
+
+                    // Hype announcer callouts for combos
+                    this.triggerComboCallout(comboResult.count, isP1);
+                }
+
+                // First blood callout
+                if (!this.firstBlood) {
+                    this.firstBlood = true;
+                    this.showAnnouncerCallout('FIRST BLOOD!', '#ff0000');
                 }
 
                 // Play attack sound
@@ -1005,6 +1255,18 @@ export default class FightScene extends Phaser.Scene {
 
                 // Screen effects based on attack type
                 this.triggerHitScreenEffects(hitbox.type, hitbox.damage);
+
+                // Check for rage mode activation
+                this.checkRageMode(defender);
+
+                // Heavy hit callouts
+                if (hitbox.damage >= 20) {
+                    this.showAnnouncerCallout('DEVASTATING!', '#ff6600');
+                } else if (hitbox.type === 'uppercut') {
+                    this.showAnnouncerCallout('RISING FIST!', '#00ffff');
+                } else if (hitbox.type === 'sweep' && defender.isGrounded) {
+                    this.showAnnouncerCallout('SWEPT!', '#ff00ff');
+                }
             } else {
                 // Block screen effect (lighter shake)
                 this.cameras.main.shake(50, 0.003);
@@ -1016,10 +1278,18 @@ export default class FightScene extends Phaser.Scene {
 
                 // Reset combo on block
                 comboSystem.resetCombo();
+
+                // Perfect block callout for well-timed blocks
+                if (Math.random() < 0.3) {
+                    this.showAnnouncerCallout('BLOCKED!', '#00ffff', 24);
+                }
             }
 
             // Deactivate hitbox
             attacker.attackHitbox.active = false;
+
+            // Check for low health callouts
+            this.checkHealthCallouts();
 
             // Check for KO
             if (defender.health <= 0) {
@@ -1030,9 +1300,153 @@ export default class FightScene extends Phaser.Scene {
                     this.soundManager.playKO();
                 }
 
-                this.triggerKOEffects();
+                this.triggerKOEffects(winner);
                 this.endRound(winner);
             }
+        }
+    }
+
+    // === HIT FREEZE SYSTEM ===
+    getHitFreezeDuration(attackType, damage) {
+        const baseDurations = {
+            punch: 60,
+            kick: 80,
+            uppercut: 120,
+            sweep: 100,
+            special: 180
+        };
+        return baseDurations[attackType] || 60;
+    }
+
+    triggerHitFreeze(duration, attacker, defender) {
+        // Freeze both fighters briefly
+        this.hitFreezeActive = true;
+        this.hitFreezeDuration = duration;
+
+        // Store original time scale
+        const originalTimeScale = this.tweens.timeScale;
+
+        // Slow everything dramatically
+        this.tweens.timeScale = 0.05;
+        this.time.timeScale = 0.05;
+
+        // Quick white flash at impact point
+        const impactX = (attacker.container.x + defender.container.x) / 2;
+        const impactY = defender.container.y - 40;
+
+        const impactFlash = this.add.circle(impactX, impactY, 30, 0xffffff, 0.9);
+        impactFlash.setDepth(DEPTH.EFFECTS_FRONT + 10);
+
+        // Resume after freeze
+        this.time.delayedCall(duration * 0.05, () => {
+            this.tweens.timeScale = originalTimeScale;
+            this.time.timeScale = 1;
+            this.hitFreezeActive = false;
+
+            // Fade out impact flash
+            this.tweens.add({
+                targets: impactFlash,
+                alpha: 0,
+                scale: 2,
+                duration: 100,
+                onComplete: () => impactFlash.destroy()
+            });
+        });
+    }
+
+    // === ANNOUNCER CALLOUT SYSTEM ===
+    showAnnouncerCallout(text, color = '#ffff00', fontSize = 48) {
+        const { width, height } = this.cameras.main;
+
+        // Kill any existing tween on announcer text
+        this.tweens.killTweensOf(this.announcerText);
+
+        this.announcerText.setText(text);
+        this.announcerText.setStyle({
+            fontFamily: 'Arial Black',
+            fontSize: `${fontSize}px`,
+            color: color,
+            stroke: '#000000',
+            strokeThickness: 6
+        });
+        this.announcerText.setAlpha(1);
+        this.announcerText.setScale(2);
+        this.announcerText.y = height / 2 - 80;
+
+        // Dramatic entrance
+        this.tweens.add({
+            targets: this.announcerText,
+            scale: 1,
+            duration: 150,
+            ease: 'Back.out',
+            onComplete: () => {
+                this.tweens.add({
+                    targets: this.announcerText,
+                    alpha: 0,
+                    y: this.announcerText.y - 30,
+                    delay: 600,
+                    duration: 300
+                });
+            }
+        });
+
+        // Play announcer sound
+        if (this.soundManager) {
+            this.soundManager.playMenuConfirm();
+        }
+    }
+
+    triggerComboCallout(count, isP1) {
+        const callouts = {
+            3: { text: 'NICE COMBO!', color: '#00ff00' },
+            4: { text: 'IMPRESSIVE!', color: '#00ffff' },
+            5: { text: 'BRUTAL!', color: '#ff6600' },
+            6: { text: 'SAVAGE!', color: '#ff0066' },
+            7: { text: 'MONSTER!', color: '#ff0000' },
+            8: { text: 'UNSTOPPABLE!', color: '#ff00ff' },
+            9: { text: 'LEGENDARY!', color: '#ffff00' },
+            10: { text: 'GODLIKE!', color: '#ffffff' }
+        };
+
+        const callout = callouts[count] || (count > 10 ? { text: 'INSANE!!!', color: '#ffffff' } : null);
+
+        if (callout) {
+            this.showAnnouncerCallout(callout.text, callout.color);
+        }
+    }
+
+    checkHealthCallouts() {
+        const p1Health = this.player1.health / this.player1.maxHealth;
+        const p2Health = this.player2.health / this.player2.maxHealth;
+
+        // Low health warning
+        if (p1Health <= 0.25 && this.lastHealthCallout.p1 > 0.25) {
+            this.showAnnouncerCallout('DANGER!', '#ff0000');
+            this.lastHealthCallout.p1 = p1Health;
+        }
+        if (p2Health <= 0.25 && this.lastHealthCallout.p2 > 0.25) {
+            this.showAnnouncerCallout('DANGER!', '#ff0000');
+            this.lastHealthCallout.p2 = p2Health;
+        }
+
+        // Critical health
+        if (p1Health <= 0.1 && this.lastHealthCallout.p1 > 0.1) {
+            this.showAnnouncerCallout('FINISH THEM!', '#ff0000');
+            this.lastHealthCallout.p1 = p1Health;
+        }
+        if (p2Health <= 0.1 && this.lastHealthCallout.p2 > 0.1) {
+            this.showAnnouncerCallout('FINISH THEM!', '#ff0000');
+            this.lastHealthCallout.p2 = p2Health;
+        }
+    }
+
+    checkRageMode(fighter) {
+        const healthPercent = fighter.health / fighter.maxHealth;
+
+        if (healthPercent <= 0.25 && !fighter.rageMode) {
+            fighter.activateRageMode();
+            const name = fighter === this.player1 ? FIGHTERS[this.player1Id].name : FIGHTERS[this.player2Id].name;
+            this.showAnnouncerCallout(`${name.toUpperCase()} RAGE!`, '#ff0000');
         }
     }
 
@@ -1089,53 +1503,146 @@ export default class FightScene extends Phaser.Scene {
         }
     }
 
-    triggerKOEffects() {
+    triggerKOEffects(winner) {
         const camera = this.cameras.main;
         const { width, height } = camera;
 
-        // Dramatic slow motion
-        this.slowMotionEffect(500);
+        // Get winner fighter
+        const winningFighter = winner === 1 ? this.player1 : this.player2;
+
+        // === DRAMATIC SLOW MOTION ===
+        this.slowMotionEffect(800);
 
         // Heavy screen shake
-        camera.shake(400, 0.02);
+        camera.shake(500, 0.025);
 
-        // Screen flash
-        this.screenFlash(0xffffff, 0.5);
+        // Multiple screen flashes
+        this.screenFlash(0xffffff, 0.8);
+        this.time.delayedCall(100, () => this.screenFlash(0xff0000, 0.4));
+        this.time.delayedCall(200, () => this.screenFlash(0xffffff, 0.3));
 
-        // Zoom in slightly
+        // === DRAMATIC ZOOM ===
+        // Zoom toward the winner
+        const zoomX = winningFighter.container.x;
+        const zoomY = winningFighter.container.y - 50;
+
         this.tweens.add({
             targets: camera,
-            zoom: 1.1,
-            duration: 300,
-            yoyo: true,
-            ease: 'Power2'
-        });
-
-        // KO text flash
-        const koText = this.add.text(width / 2, height / 2, 'K.O.!', {
-            fontFamily: 'Arial Black',
-            fontSize: '80px',
-            color: '#ff0000',
-            stroke: '#000000',
-            strokeThickness: 10
-        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY).setAlpha(0).setScale(3);
-
-        this.tweens.add({
-            targets: koText,
-            alpha: 1,
-            scale: 1,
-            duration: 300,
-            ease: 'Back.out',
+            zoom: 1.4,
+            scrollX: zoomX - width / 2.8,
+            scrollY: zoomY - height / 2.8,
+            duration: 400,
+            ease: 'Power2.out',
             onComplete: () => {
-                this.tweens.add({
-                    targets: koText,
-                    alpha: 0,
-                    y: koText.y - 50,
-                    duration: 800,
-                    delay: 500,
-                    onComplete: () => koText.destroy()
+                // Hold then zoom back
+                this.time.delayedCall(600, () => {
+                    this.tweens.add({
+                        targets: camera,
+                        zoom: 1,
+                        scrollX: 0,
+                        scrollY: 0,
+                        duration: 500,
+                        ease: 'Power2.inOut'
+                    });
                 });
             }
+        });
+
+        // === KO IMPACT RING ===
+        const loser = winner === 1 ? this.player2 : this.player1;
+        this.createKOImpactRings(loser.container.x, loser.container.y - 40);
+
+        // === KO TEXT ANIMATION ===
+        const koText = this.add.text(width / 2, height / 2, 'K.O.!', {
+            fontFamily: 'Arial Black',
+            fontSize: '120px',
+            color: '#ff0000',
+            stroke: '#000000',
+            strokeThickness: 12
+        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 5).setAlpha(0).setScale(5);
+
+        // Add glow behind KO text
+        const koGlow = this.add.text(width / 2, height / 2, 'K.O.!', {
+            fontFamily: 'Arial Black',
+            fontSize: '120px',
+            color: '#ff6600'
+        }).setOrigin(0.5).setDepth(DEPTH.OVERLAY + 4).setAlpha(0).setScale(5.2);
+
+        this.tweens.add({
+            targets: [koText, koGlow],
+            alpha: 1,
+            scale: 1,
+            duration: 200,
+            ease: 'Back.out',
+            onComplete: () => {
+                // Pulsing effect
+                this.tweens.add({
+                    targets: koGlow,
+                    scale: 1.1,
+                    alpha: 0.5,
+                    duration: 200,
+                    yoyo: true,
+                    repeat: 3
+                });
+
+                this.tweens.add({
+                    targets: [koText, koGlow],
+                    alpha: 0,
+                    y: koText.y - 50,
+                    scale: 0.8,
+                    duration: 600,
+                    delay: 800,
+                    onComplete: () => {
+                        koText.destroy();
+                        koGlow.destroy();
+                    }
+                });
+            }
+        });
+
+        // === SCREEN BORDER FLASH ===
+        this.createKOBorderFlash(width, height);
+    }
+
+    createKOImpactRings(x, y) {
+        const colors = [0xffffff, 0xffff00, 0xff6600, 0xff0000];
+
+        for (let i = 0; i < 4; i++) {
+            const ring = this.add.circle(x, y, 20, colors[i], 0);
+            ring.setStrokeStyle(8 - i, colors[i]);
+            ring.setDepth(DEPTH.EFFECTS_FRONT + 2);
+
+            this.tweens.add({
+                targets: ring,
+                radius: 150 + i * 30,
+                alpha: 0,
+                duration: 400 + i * 100,
+                delay: i * 50,
+                ease: 'Power2.out',
+                onComplete: () => ring.destroy()
+            });
+        }
+    }
+
+    createKOBorderFlash(width, height) {
+        // Create border rectangles that flash
+        const borderWidth = 20;
+        const borders = [
+            this.add.rectangle(width / 2, borderWidth / 2, width, borderWidth, 0xff0000, 0.8),
+            this.add.rectangle(width / 2, height - borderWidth / 2, width, borderWidth, 0xff0000, 0.8),
+            this.add.rectangle(borderWidth / 2, height / 2, borderWidth, height, 0xff0000, 0.8),
+            this.add.rectangle(width - borderWidth / 2, height / 2, borderWidth, height, 0xff0000, 0.8)
+        ];
+
+        borders.forEach(border => {
+            border.setDepth(DEPTH.OVERLAY + 3);
+            this.tweens.add({
+                targets: border,
+                alpha: 0,
+                duration: 600,
+                ease: 'Power2.out',
+                onComplete: () => border.destroy()
+            });
         });
     }
 

@@ -28,6 +28,11 @@ export default class Fighter {
         this.comboCount = 0;
         this.lastHitTime = 0;
 
+        // Rage mode
+        this.rageMode = false;
+        this.rageDamageBonus = 1.3; // 30% damage boost
+        this.rageAura = null;
+
         // Create fighter container
         this.container = scene.add.container(x, y);
         this.container.setDepth(DEPTH.FIGHTERS);
@@ -916,6 +921,11 @@ export default class Fighter {
         this.canAct = false;
         this.isBlocking = false;
 
+        // Deactivate rage mode on KO
+        if (this.rageMode) {
+            this.deactivateRageMode();
+        }
+
         this.scene.tweens.add({
             targets: this.container,
             rotation: (Math.PI / 2) * -this.facing,
@@ -925,11 +935,307 @@ export default class Fighter {
         });
     }
 
+    // === RAGE MODE ===
+    activateRageMode() {
+        if (this.rageMode) return;
+
+        this.rageMode = true;
+
+        // Create rage aura effect
+        this.rageAura = this.scene.add.graphics();
+        this.container.add(this.rageAura);
+        this.container.sendToBack(this.rageAura);
+
+        // Pulsing red aura
+        this.updateRageAura();
+
+        // Flash the fighter red
+        this.scene.tweens.add({
+            targets: this.bodyGfx,
+            alpha: 0.3,
+            duration: 100,
+            yoyo: true,
+            repeat: 5
+        });
+
+        // Screen effect
+        this.scene.cameras.main.flash(200, 255, 0, 0, false, null, this, 0.3);
+
+        // Enhance the glow
+        if (this.glow) {
+            this.scene.tweens.killTweensOf(this.glow);
+            this.glow.setFillStyle(0xff0000, 0.4);
+            this.scene.tweens.add({
+                targets: this.glow,
+                alpha: { from: 0.3, to: 0.6 },
+                scale: { from: 1, to: 1.4 },
+                duration: 400,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.inOut'
+            });
+        }
+
+        // Increase power
+        this.powerMod = this.config.stats.power / 100 * this.rageDamageBonus;
+
+        // Create rage particles continuously
+        this.rageParticleEvent = this.scene.time.addEvent({
+            delay: 100,
+            callback: this.createRageParticle,
+            callbackScope: this,
+            loop: true
+        });
+
+        // Dramatic camera shake
+        this.scene.cameras.main.shake(300, 0.01);
+    }
+
+    updateRageAura() {
+        if (!this.rageAura || !this.rageMode) return;
+
+        this.rageAura.clear();
+        this.rageAura.fillStyle(0xff0000, 0.15);
+        this.rageAura.fillCircle(0, -40, 80);
+        this.rageAura.fillStyle(0xff6600, 0.1);
+        this.rageAura.fillCircle(0, -40, 100);
+    }
+
+    createRageParticle() {
+        if (!this.rageMode) return;
+
+        const particle = this.scene.add.circle(
+            this.container.x + Phaser.Math.Between(-30, 30),
+            this.container.y + Phaser.Math.Between(-20, 60),
+            Phaser.Math.Between(3, 8),
+            Phaser.Math.RND.pick([0xff0000, 0xff3300, 0xff6600]),
+            0.8
+        );
+        particle.setDepth(DEPTH.EFFECTS_FRONT);
+
+        this.scene.tweens.add({
+            targets: particle,
+            y: particle.y - Phaser.Math.Between(50, 100),
+            alpha: 0,
+            scale: 0,
+            duration: Phaser.Math.Between(300, 600),
+            ease: 'Power2.out',
+            onComplete: () => particle.destroy()
+        });
+    }
+
+    deactivateRageMode() {
+        if (!this.rageMode) return;
+
+        this.rageMode = false;
+
+        // Remove rage aura
+        if (this.rageAura) {
+            this.rageAura.destroy();
+            this.rageAura = null;
+        }
+
+        // Stop rage particles
+        if (this.rageParticleEvent) {
+            this.rageParticleEvent.destroy();
+            this.rageParticleEvent = null;
+        }
+
+        // Reset glow
+        if (this.glow) {
+            this.scene.tweens.killTweensOf(this.glow);
+            this.glow.setFillStyle(this.config.color, 0.15);
+            this.scene.tweens.add({
+                targets: this.glow,
+                alpha: { from: 0.15, to: 0.25 },
+                scale: { from: 1, to: 1.1 },
+                duration: 1500,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.inOut'
+            });
+        }
+
+        // Reset power
+        this.powerMod = this.config.stats.power / 100;
+    }
+
+    // === VICTORY POSE ===
+    doVictoryPose() {
+        this.state = 'victory';
+        this.canAct = false;
+        this.velocityX = 0;
+
+        // Deactivate rage mode for victory
+        if (this.rageMode) {
+            this.deactivateRageMode();
+        }
+
+        // Reset rotation if any
+        this.container.rotation = 0;
+
+        const poseType = Phaser.Math.RND.pick(['fistPump', 'crossArms', 'celebrate']);
+
+        switch (poseType) {
+            case 'fistPump':
+                this.doFistPumpPose();
+                break;
+            case 'crossArms':
+                this.doCrossArmsPose();
+                break;
+            case 'celebrate':
+                this.doCelebratePose();
+                break;
+        }
+
+        // Victory glow
+        this.scene.tweens.add({
+            targets: this.glow,
+            alpha: { from: 0.3, to: 0.6 },
+            scale: { from: 1, to: 1.5 },
+            duration: 600,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut'
+        });
+    }
+
+    doFistPumpPose() {
+        // Jump up and pump fist
+        this.scene.tweens.add({
+            targets: this.container,
+            y: this.container.y - 50,
+            duration: 300,
+            yoyo: true,
+            ease: 'Power2.out',
+            repeat: 2,
+            repeatDelay: 200
+        });
+
+        // Fist glow effect
+        this.scene.tweens.add({
+            targets: this.fistGlow,
+            alpha: { from: 0, to: 1 },
+            scale: { from: 1, to: 2 },
+            duration: 300,
+            yoyo: true,
+            repeat: 2,
+            repeatDelay: 200
+        });
+
+        // Create energy bursts
+        this.scene.time.addEvent({
+            delay: 500,
+            callback: () => {
+                for (let i = 0; i < 8; i++) {
+                    const burst = this.scene.add.circle(
+                        this.container.x,
+                        this.container.y - 60,
+                        5,
+                        this.config.accentColor,
+                        1
+                    );
+                    burst.setDepth(DEPTH.EFFECTS_FRONT);
+
+                    const angle = (i / 8) * Math.PI * 2;
+                    this.scene.tweens.add({
+                        targets: burst,
+                        x: burst.x + Math.cos(angle) * 60,
+                        y: burst.y + Math.sin(angle) * 60,
+                        alpha: 0,
+                        scale: 2,
+                        duration: 400,
+                        onComplete: () => burst.destroy()
+                    });
+                }
+            },
+            repeat: 2
+        });
+    }
+
+    doCrossArmsPose() {
+        // Stand tall pose
+        this.scene.tweens.add({
+            targets: this.container,
+            scaleY: 1.05,
+            duration: 400,
+            ease: 'Power2.out'
+        });
+
+        // Dramatic aura pulse
+        const auraRing = this.scene.add.circle(
+            this.container.x,
+            this.container.y - 40,
+            10,
+            this.config.color,
+            0.8
+        );
+        auraRing.setDepth(DEPTH.EFFECTS_FRONT - 1);
+
+        this.scene.tweens.add({
+            targets: auraRing,
+            radius: 100,
+            alpha: 0,
+            duration: 800,
+            repeat: -1,
+            repeatDelay: 400
+        });
+    }
+
+    doCelebratePose() {
+        // Spin celebration
+        this.scene.tweens.add({
+            targets: this.container,
+            angle: { from: 0, to: 360 },
+            duration: 600,
+            ease: 'Power2.out',
+            onComplete: () => {
+                // End pose
+                this.scene.tweens.add({
+                    targets: this.container,
+                    y: this.container.y - 30,
+                    scaleY: 1.1,
+                    duration: 300,
+                    yoyo: true
+                });
+            }
+        });
+
+        // Celebration sparkles
+        this.scene.time.addEvent({
+            delay: 200,
+            callback: () => {
+                for (let i = 0; i < 5; i++) {
+                    const sparkle = this.scene.add.star(
+                        this.container.x + Phaser.Math.Between(-40, 40),
+                        this.container.y + Phaser.Math.Between(-80, 20),
+                        5, 3, 8,
+                        Phaser.Math.RND.pick([0xffffff, 0xffff00, this.config.accentColor]),
+                        1
+                    );
+                    sparkle.setDepth(DEPTH.EFFECTS_FRONT);
+
+                    this.scene.tweens.add({
+                        targets: sparkle,
+                        y: sparkle.y - 40,
+                        alpha: 0,
+                        rotation: Math.PI,
+                        scale: 0,
+                        duration: 600,
+                        onComplete: () => sparkle.destroy()
+                    });
+                }
+            },
+            repeat: 5
+        });
+    }
+
     reset(x) {
         this.container.x = x;
         this.container.y = this.groundY;
         this.container.rotation = 0;
         this.container.scaleY = 1;
+        this.container.scaleX = this.isPlayer1 ? 1 : -1;
         this.health = this.maxHealth;
         this.specialMeter = 0;
         this.state = 'idle';
@@ -939,6 +1245,15 @@ export default class Fighter {
         this.velocityX = 0;
         this.velocityY = 0;
         this.attackHitbox = null;
+
+        // Reset rage mode
+        if (this.rageMode) {
+            this.deactivateRageMode();
+        }
+
+        // Reset facing
+        this.facing = this.isPlayer1 ? 1 : -1;
+        this.updateFacing();
     }
 
     update(delta) {
